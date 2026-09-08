@@ -590,8 +590,10 @@ The mean Relative Accuracy for a corruption $c$ is averaged across severities $s
 $$\text{RA}_{c} = \frac{1}{3} \sum_{s \in \{1, 3, 5\}} \text{RA}_{c, s}, \qquad \text{mRA} = \frac{1}{|C|} \sum_{c \in C} \text{RA}_{c}$$
 
 ### 4. Relative Corruption Error (RCE%)
-Measures the percentage drop in detection accuracy when a specific sensor modality is lost (e.g., $c = \text{no\_camera}$):
-$$\text{RCE}\% = \frac{\text{AP}_{\text{clean}} - \text{AP}_{\text{no\_camera}}}{\text{AP}_{\text{clean}}} \times 100\%$$
+Measures the percentage drop in detection accuracy when a specific sensor modality is lost (e.g., $c = \text{no-camera}$):
+$$
+\text{RCE}\% = \frac{\text{AP}_{\text{clean}} - \text{AP}_{\text{no-camera}}}{\text{AP}_{\text{clean}}} \times 100\%
+$$
 - **Low $\text{RCE}\%$**: High sensor redundancy (the model maintains high accuracy even when a sensor fails).
 - **High $\text{RCE}\%$**: High sensor dependency (the model severely degrades without that modality).
 
@@ -618,9 +620,6 @@ Please cite the corresponding tools, models, benchmarks, and libraries utilized 
 
 ---
 
-### 1. Benchmark Dataset & Corruption Suite
-
-- **KITTI Vision Benchmark Suite** (Geiger et al., CVPR 2012):
   ```bibtex
   @inproceedings{geiger2012we,
     title={Are we ready for autonomous driving? The KITTI vision benchmark suite},
@@ -629,10 +628,7 @@ Please cite the corresponding tools, models, benchmarks, and libraries utilized 
     pages={3354--3361},
     year={2012}
   }
-  ```
 
-- **3D Common Corruptions / KITTI-C** ([thu-ml/3D_Corruptions_AD](https://github.com/thu-ml/3D_Corruptions_AD), He et al., CVPR 2023):
-  ```bibtex
   @inproceedings{he2023benchmarking,
     title={Benchmarking Robustness of 3D Object Detection to Common Corruptions in Autonomous Driving},
     author={He, Jiawei and Chen, Charlie and Gao, Huan-ang and Cao, Yuxuan and Wang, Zhaoxi and Ding, Jianmin and Dong, Yinpeng and Zhu, Jun},
@@ -640,17 +636,9 @@ Please cite the corresponding tools, models, benchmarks, and libraries utilized 
     pages={21973--21982},
     year={2023}
   }
-  ```
-
-- **KITTI LiDAR-to-Camera Projection** (azureology):
+  
   - Repository: [azureology/kitti-velo2cam](https://github.com/azureology/kitti-velo2cam)
 
----
-
-### 2. Multimodal 3D Detection Models
-
-- **BEVFusion: Multi-Task Multi-Sensor Fusion with Unified BEV Representation** ([mit-han-lab/bevfusion](https://github.com/mit-han-lab/bevfusion), Liu et al., ICRA 2023):
-  ```bibtex
   @inproceedings{liu2023bevfusion,
     title={BEVFusion: Multi-Task Multi-Sensor Fusion with Unified BEV Representation},
     author={Liu, Zhijian and Tang, Haotian and Amini, Alexander and Yang, Xingyu and Mao, Huizi and Rus, Daniela and Han, Song},
@@ -658,10 +646,7 @@ Please cite the corresponding tools, models, benchmarks, and libraries utilized 
     pages={2774--2781},
     year={2023}
   }
-  ```
 
-- **MVX-Net: Multimodal VoxelNet for 3D Object Detection** (Sindagi et al., ICRA 2019):
-  ```bibtex
   @inproceedings{sindagi2019mvx,
     title={MVX-Net: Multimodal VoxelNet for 3D Object Detection},
     author={Sindagi, Vishwanath A and Zhou, Yin and Tuzel, Oncel},
@@ -669,10 +654,7 @@ Please cite the corresponding tools, models, benchmarks, and libraries utilized 
     pages={7276--7282},
     year={2019}
   }
-  ```
 
-- **VirConv: Virtual Sparse Convolution for Multimodal 3D Object Detection** ([HiLab-git/VirConv](https://github.com/HiLab-git/VirConv), Wu et al., CVPR 2023):
-  ```bibtex
   @inproceedings{wu2023virtual,
     title={Virtual Sparse Convolution for Multimodal 3D Object Detection},
     author={Wu, Hai and Deng, Chenglu and Rao, Jintao and Zhao, Jie and Lu, Jiwen and Zhou, Jie},
@@ -680,24 +662,16 @@ Please cite the corresponding tools, models, benchmarks, and libraries utilized 
     pages={21653--21662},
     year={2023}
   }
-  ```
+  
 
----
-
-### 3. Deep Learning & 3D Detection Frameworks
-
-- **MMDetection3D: OpenMMLab Next-Generation 3D Object Detection Toolbox** ([open-mmlab/mmdetection3d](https://github.com/open-mmlab/mmdetection3d)):
-  ```bibtex
   @misc{mmdet3d2020,
     title={{MMDetection3D}: OpenMMLab next-generation platform for general 3D object detection},
     author={MMDetection3D Contributors},
     howpublished={\url{https://github.com/open-mmlab/mmdetection3d}},
     year={2020}
   }
-  ```
+  
 
-- **OpenPCDet: An Open-source Project for LiDAR-based 3D Object Detection** ([open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet)):
-  ```bibtex
   @misc{openpcdet2020,
     title={OpenPCDet: An Open-source Toolbox for 3D Object Detection from Point Cloud},
     author={OpenPCDet Development Team},
@@ -705,4 +679,3 @@ Please cite the corresponding tools, models, benchmarks, and libraries utilized 
     year={2020}
   }
   ```
----
