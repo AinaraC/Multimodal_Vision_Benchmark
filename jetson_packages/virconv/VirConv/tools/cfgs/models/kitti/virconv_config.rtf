@@ -1,0 +1,343 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 CLASS_NAMES:{\cf1  }{\cf6 [}{\cf13 'Car'},{\cf1  }{\cf13 'Pedestrian'},{\cf1  }{\cf13 'Cyclist'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}DATA_CONFIG:{\cf1 \par
+}{\cf1     }_BASE_CONFIG_:{\cf1  }cfgs/dataset_configs/kitti_dataset.yaml{\cf1 \par
+}{\cf1     }DATASET:{\cf1  }{\cf13 'KittiDatasetMM'}{\cf1 \par
+}{\cf1     }INPUT_DISCARD_RATE:{\cf1  }{\cf20 0}.8{\cf1    }#{\cf1  }actually{\cf1  }discard{\cf1  }more{\cf1  }than{\cf1  }{\cf20 90}%{\cf1  }virtual{\cf1  }points{\cf1  }of{\cf1  }RGB{\cf1  }image,{\cf1 \par
+}{\cf1                               }#{\cf1  }as{\cf1  }we{\cf1  }only{\cf1  }saved{\cf1  }less{\cf1  }than{\cf1  }{\cf20 50}%{\cf1  }RGB{\cf1  }points{\cf1  }during{\cf1  }depth2points{\cf1  }conversion.{\cf1 \par
+}{\cf1     }LATER_FUSION:{\cf1  }False{\cf1 \par
+}{\cf1     }MM_PATH:{\cf1  }{\cf13 'velodyne_depth'}{\cf1 \par
+}{\cf1     }USE_VAN:{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1     }DATA_SPLIT:{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1         }{\cf13 'train'}:{\cf1  }train,{\cf1 \par
+}{\cf1         }{\cf13 'test'}:{\cf1  }val{\cf1 \par
+}{\cf1     }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }INFO_PATH:{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1         }{\cf13 'train'}:{\cf1  }{\cf6 [}kitti_infos_train.pkl{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf13 'test'}:{\cf1  }{\cf6 [}kitti_infos_val.pkl{\cf6 ]},{\cf1 \par
+}{\cf1     }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }DATA_AUGMENTOR:{\cf1 \par
+}{\cf1         }DISABLE_AUG_LIST:{\cf1  }{\cf6 [}{\cf13 'placeholder'}{\cf6 ]}{\cf1 \par
+}{\cf1         }AUG_CONFIG_LIST:{\cf1 \par
+}{\cf1             }-{\cf1  }NAME:{\cf1  }gt_sampling{\cf1 \par
+}{\cf1               }USE_ROAD_PLANE:{\cf1  }True{\cf1 \par
+}{\cf1               }DB_INFO_PATH:{\cf1 \par
+}{\cf1                   }-{\cf1  }kitti_dbinfos_train_mm.pkl{\cf1 \par
+}{\cf1               }PREPARE:{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                   }filter_by_min_points:{\cf1  }{\cf6 [}{\cf13 'Car:5'},{\cf1  }{\cf13 'Pedestrian:5'},{\cf1  }{\cf13 'Cyclist:5'}{\cf6 ]},{\cf1 \par
+}{\cf1                   }filter_by_difficulty:{\cf1  }{\cf6 [}-1{\cf6 ]},{\cf1 \par
+}{\cf1               }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1               }SAMPLE_GROUPS:{\cf1  }{\cf6 [}{\cf13 'Car:10'},{\cf1  }{\cf13 'Pedestrian:10'},{\cf1  }{\cf13 'Cyclist:10'}{\cf6 ]}{\cf1 \par
+}{\cf1               }NUM_POINT_FEATURES:{\cf1  }{\cf20 8}{\cf1 \par
+}{\cf1               }DATABASE_WITH_FAKELIDAR:{\cf1  }False{\cf1 \par
+}{\cf1               }REMOVE_EXTRA_WIDTH:{\cf1  }{\cf6 [}{\cf20 0}.0,{\cf1  }{\cf20 0}.0,{\cf1  }-0.2{\cf6 ]}{\cf1 \par
+}{\cf1               }LIMIT_WHOLE_SCENE:{\cf1  }False{\cf1 \par
+}{\cf1 \par
+}{\cf1             }-{\cf1  }NAME:{\cf1  }da_sampling{\cf1 \par
+}{\cf1               }USE_ROAD_PLANE:{\cf1  }True{\cf1 \par
+}{\cf1               }DB_INFO_PATH:{\cf1 \par
+}{\cf1                 }-{\cf1  }kitti_dbinfos_train_mm.pkl{\cf1 \par
+}{\cf1               }PREPARE:{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                 }filter_by_min_points:{\cf1  }{\cf6 [}{\cf13 'Car:5'}{\cf6 ]},{\cf1 \par
+}{\cf1                 }filter_by_difficulty:{\cf1  }{\cf6 [}-1{\cf6 ]},{\cf1 \par
+}{\cf1               }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1               }SAMPLE_GROUPS:{\cf1  }{\cf6 [}{\cf13 'Car:10'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1               }MIN_SAMPLING_DIS:{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1               }MAX_SAMPLING_DIS:{\cf1  }{\cf20 20}{\cf1 \par
+}{\cf1               }OCCLUSION_NOISE:{\cf1  }{\cf20 0}.2{\cf1 \par
+}{\cf1               }OCCLUSION_OFFSET:{\cf1  }{\cf20 2}.{\cf1 \par
+}{\cf1               }SAMPLING_METHOD:{\cf1  }{\cf13 'LiDAR-aware'}{\cf1 \par
+}{\cf1               }VERT_RES:{\cf1  }{\cf20 0}.006{\cf1 \par
+}{\cf1               }HOR_RES:{\cf1  }{\cf20 0}.003{\cf1 \par
+}{\cf1 \par
+}{\cf1               }NUM_POINT_FEATURES:{\cf1  }{\cf20 8}{\cf1 \par
+}{\cf1               }DATABASE_WITH_FAKELIDAR:{\cf1  }False{\cf1 \par
+}{\cf1               }REMOVE_EXTRA_WIDTH:{\cf1  }{\cf6 [}{\cf20 0}.0,{\cf1  }{\cf20 0}.0,{\cf1  }-0.2{\cf6 ]}{\cf1 \par
+}{\cf1               }LIMIT_WHOLE_SCENE:{\cf1  }False{\cf1 \par
+}{\cf1 \par
+}{\cf1             }-{\cf1  }NAME:{\cf1  }random_local_noise{\cf1 \par
+}{\cf1               }LOCAL_ROT_RANGE:{\cf1  }{\cf6 [}-0.78539816,{\cf1  }{\cf20 0}.78539816{\cf6 ]}{\cf1 \par
+}{\cf1               }TRANSLATION_STD:{\cf1  }{\cf6 [}{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 0}.5{\cf6 ]}{\cf1 \par
+}{\cf1               }GLOBAL_ROT_RANGE:{\cf1  }{\cf6 [}{\cf20 0}.0,{\cf1  }{\cf20 0}.0{\cf6 ]}{\cf1 \par
+}{\cf1               }EXTRA_WIDTH:{\cf1  }{\cf6 [}{\cf20 0}.2,{\cf1  }{\cf20 0}.2,{\cf1  }{\cf20 0}.{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }-{\cf1  }NAME:{\cf1  }random_world_rotation{\cf1 \par
+}{\cf1               }WORLD_ROT_ANGLE:{\cf1  }{\cf6 [}-0.78539816,{\cf1  }{\cf20 0}.78539816{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }-{\cf1  }NAME:{\cf1  }random_world_flip{\cf1 \par
+}{\cf1               }ALONG_AXIS_LIST:{\cf1  }{\cf6 [}{\cf13 'x'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }-{\cf1  }NAME:{\cf1  }random_world_scaling{\cf1 \par
+}{\cf1               }WORLD_SCALE_RANGE:{\cf1  }{\cf6 [}{\cf20 0}.95,{\cf1  }{\cf20 1}.05{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }-{\cf1  }NAME:{\cf1  }random_local_pyramid_aug{\cf1 \par
+}{\cf1               }DROP_PROB:{\cf1  }{\cf20 0}.25{\cf1 \par
+}{\cf1               }SPARSIFY_PROB:{\cf1  }{\cf20 0}.05{\cf1 \par
+}{\cf1               }SPARSIFY_MAX_NUM:{\cf1  }{\cf20 50}{\cf1 \par
+}{\cf1               }SWAP_PROB:{\cf1  }{\cf20 0}.1{\cf1 \par
+}{\cf1               }SWAP_MAX_NUM:{\cf1  }{\cf20 50}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }POINT_FEATURE_ENCODING:{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1         }encoding_type:{\cf1  }absolute_coordinates_encoding_mm,{\cf1 \par
+}{\cf1         }used_feature_list:{\cf1  }{\cf6 [}{\cf13 'x'},{\cf1  }{\cf13 'y'},{\cf1  }{\cf13 'z'},{\cf1  }{\cf13 'intensity'}{\cf6 ]},{\cf1 \par
+}{\cf1         }src_feature_list:{\cf1  }{\cf6 [}{\cf13 'x'},{\cf1  }{\cf13 'y'},{\cf1  }{\cf13 'z'},{\cf1  }{\cf13 'intensity'}{\cf6 ]},{\cf1 \par
+}{\cf1         }num_features:{\cf1  }{\cf20 8}{\cf1 \par
+}{\cf1     }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }DATA_PROCESSOR:{\cf1 \par
+}{\cf1         }-{\cf1  }NAME:{\cf1  }mask_points_and_boxes_outside_range{\cf1 \par
+}{\cf1           }REMOVE_OUTSIDE_BOXES:{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1         }-{\cf1  }NAME:{\cf1  }shuffle_points{\cf1 \par
+}{\cf1           }SHUFFLE_ENABLED:{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1             }{\cf13 'train'}:{\cf1  }True,{\cf1 \par
+}{\cf1             }{\cf13 'test'}:{\cf1  }False{\cf1 \par
+}{\cf1           }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }-{\cf1  }NAME:{\cf1  }transform_points_to_voxels{\cf1 \par
+}{\cf1           }VOXEL_SIZE:{\cf1  }{\cf6 [}{\cf20 0}.05,{\cf1  }{\cf20 0}.05,{\cf1  }{\cf20 0}.05{\cf6 ]}{\cf1 \par
+}{\cf1           }LIDAR_FIRST:{\cf1  }True{\cf1 \par
+}{\cf1           }MAX_POINTS_PER_VOXEL:{\cf1  }{\cf20 5}{\cf1 \par
+}{\cf1           }MAX_NUMBER_OF_VOXELS:{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1             }{\cf13 'train'}:{\cf1  }{\cf20 40000},{\cf1  }#{\cf1  }using{\cf1  }{\cf20 40000}{\cf1  }voxels{\cf1  }is{\cf1  }enough{\cf1  }after{\cf1  }input{\cf1  }discard{\cf1 \par
+}{\cf1             }{\cf13 'test'}:{\cf1  }{\cf20 40000}{\cf1    }#{\cf1  }The{\cf1  }{\cf20 40000}{\cf1  }voxels{\cf1  }include{\cf1  }both{\cf1  }LiDAR{\cf1  }and{\cf1  }virtual{\cf1  }points{\cf1 \par
+}{\cf1           }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}MODEL:{\cf1 \par
+}{\cf1     }NAME:{\cf1  }VoxelRCNN{\cf1 \par
+}{\cf1 \par
+}{\cf1     }VFE:{\cf1 \par
+}{\cf1         }NAME:{\cf1  }MeanVFE{\cf1 \par
+}{\cf1         }MODEL:{\cf1  }{\cf13 'max'}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }BACKBONE_3D:{\cf1 \par
+}{\cf1         }NAME:{\cf1  }VirConvL8x{\cf1 \par
+}{\cf1         }NUM_FILTERS:{\cf1  }{\cf6 [}{\cf20 16},{\cf1  }{\cf20 32},{\cf1  }{\cf20 64},{\cf1  }{\cf20 64}{\cf6 ]}{\cf1 \par
+}{\cf1         }RETURN_NUM_FEATURES_AS_DICT:{\cf1  }True{\cf1 \par
+}{\cf1         }OUT_FEATURES:{\cf1  }{\cf20 64}{\cf1 \par
+}{\cf1         }LAYER_DISCARD_RATE:{\cf1  }{\cf20 0}.1{\cf1 \par
+}{\cf1 \par
+}{\cf1     }MAP_TO_BEV:{\cf1 \par
+}{\cf1         }NAME:{\cf1  }HeightCompression{\cf1 \par
+}{\cf1         }NUM_BEV_FEATURES:{\cf1  }{\cf20 256}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }BACKBONE_2D:{\cf1 \par
+}{\cf1         }NAME:{\cf1  }BaseBEVBackbone{\cf1 \par
+}{\cf1 \par
+}{\cf1         }LAYER_NUMS:{\cf1  }{\cf6 [}{\cf20 4},{\cf1  }{\cf20 4}{\cf6 ]}{\cf1 \par
+}{\cf1         }LAYER_STRIDES:{\cf1  }{\cf6 [}{\cf20 1},{\cf1  }{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1         }NUM_FILTERS:{\cf1  }{\cf6 [}{\cf20 64},{\cf1  }{\cf20 128}{\cf6 ]}{\cf1 \par
+}{\cf1         }UPSAMPLE_STRIDES:{\cf1  }{\cf6 [}{\cf20 1},{\cf1  }{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1         }NUM_UPSAMPLE_FILTERS:{\cf1  }{\cf6 [}{\cf20 128},{\cf1  }{\cf20 128}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }DENSE_HEAD:{\cf1 \par
+}{\cf1         }NAME:{\cf1  }AnchorHeadSingle{\cf1 \par
+}{\cf1         }CLASS_AGNOSTIC:{\cf1  }False{\cf1 \par
+}{\cf1 \par
+}{\cf1         }USE_DIRECTION_CLASSIFIER:{\cf1  }True{\cf1 \par
+}{\cf1         }DIR_OFFSET:{\cf1  }{\cf20 0}.78539{\cf1 \par
+}{\cf1         }DIR_LIMIT_OFFSET:{\cf1  }{\cf20 0}.0{\cf1 \par
+}{\cf1         }NUM_DIR_BINS:{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }ANCHOR_GENERATOR_CONFIG:{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf6 \{}{\cf1 \par
+}{\cf1                 }{\cf13 'class_name'}:{\cf1  }{\cf13 'Car'},{\cf1 \par
+}{\cf1                 }{\cf13 'anchor_sizes'}:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 3}.9,{\cf1  }{\cf20 1}.6,{\cf1  }{\cf20 1}.56{\cf6 ]}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'anchor_rotations'}:{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 1}.57{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'anchor_bottom_heights'}:{\cf1  }{\cf6 [}-1.78{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'align_center'}:{\cf1  }False,{\cf1 \par
+}{\cf1                 }{\cf13 'feature_map_stride'}:{\cf1  }{\cf20 8},{\cf1 \par
+}{\cf1                 }{\cf13 'matched_threshold'}:{\cf1  }{\cf20 0}.6,{\cf1 \par
+}{\cf1                 }{\cf13 'unmatched_threshold'}:{\cf1  }{\cf20 0}.45{\cf1 \par
+}{\cf1             }{\cf6 \}},{\cf1 \par
+}{\cf1             }{\cf6 \{}{\cf1 \par
+}{\cf1                 }{\cf13 'class_name'}:{\cf1  }{\cf13 'Pedestrian'},{\cf1 \par
+}{\cf1                 }{\cf13 'anchor_sizes'}:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 0}.8,{\cf1  }{\cf20 0}.6,{\cf1  }{\cf20 1}.73{\cf6 ]}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'anchor_rotations'}:{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 1}.57{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'anchor_bottom_heights'}:{\cf1  }{\cf6 [}-0.6{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'align_center'}:{\cf1  }False,{\cf1 \par
+}{\cf1                 }{\cf13 'feature_map_stride'}:{\cf1  }{\cf20 8},{\cf1 \par
+}{\cf1                 }{\cf13 'matched_threshold'}:{\cf1  }{\cf20 0}.5,{\cf1 \par
+}{\cf1                 }{\cf13 'unmatched_threshold'}:{\cf1  }{\cf20 0}.35{\cf1 \par
+}{\cf1             }{\cf6 \}},{\cf1 \par
+}{\cf1             }{\cf6 \{}{\cf1 \par
+}{\cf1                 }{\cf13 'class_name'}:{\cf1  }{\cf13 'Cyclist'},{\cf1 \par
+}{\cf1                 }{\cf13 'anchor_sizes'}:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 1}.76,{\cf1  }{\cf20 0}.6,{\cf1  }{\cf20 1}.73{\cf6 ]}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'anchor_rotations'}:{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 1}.57{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'anchor_bottom_heights'}:{\cf1  }{\cf6 [}-0.6{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'align_center'}:{\cf1  }False,{\cf1 \par
+}{\cf1                 }{\cf13 'feature_map_stride'}:{\cf1  }{\cf20 8},{\cf1 \par
+}{\cf1                 }{\cf13 'matched_threshold'}:{\cf1  }{\cf20 0}.5,{\cf1 \par
+}{\cf1                 }{\cf13 'unmatched_threshold'}:{\cf1  }{\cf20 0}.35{\cf1 \par
+}{\cf1             }{\cf6 \}}{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }TARGET_ASSIGNER_CONFIG:{\cf1 \par
+}{\cf1             }NAME:{\cf1  }AxisAlignedTargetAssigner{\cf1 \par
+}{\cf1             }POS_FRACTION:{\cf1  }-1.0{\cf1 \par
+}{\cf1             }SAMPLE_SIZE:{\cf1  }{\cf20 512}{\cf1 \par
+}{\cf1             }NORM_BY_NUM_EXAMPLES:{\cf1  }False{\cf1 \par
+}{\cf1             }MATCH_HEIGHT:{\cf1  }False{\cf1 \par
+}{\cf1             }BOX_CODER:{\cf1  }ResidualCoder{\cf1 \par
+}{\cf1 \par
+}{\cf1         }LOSS_CONFIG:{\cf1 \par
+}{\cf1             }LOSS_WEIGHTS:{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                 }{\cf13 'cls_weight'}:{\cf1  }{\cf20 1}.0,{\cf1 \par
+}{\cf1                 }{\cf13 'loc_weight'}:{\cf1  }{\cf20 2}.0,{\cf1 \par
+}{\cf1                 }{\cf13 'dir_weight'}:{\cf1  }{\cf20 0}.2,{\cf1 \par
+}{\cf1                 }{\cf13 'code_weights'}:{\cf1  }{\cf6 [}{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }ROI_HEAD:{\cf1 \par
+}{\cf1         }NAME:{\cf1  }TEDMHead{\cf1 \par
+}{\cf1         }CLASS_AGNOSTIC:{\cf1  }True{\cf1 \par
+}{\cf1         }ROT_NUM:{\cf1  }{\cf20 1}{\cf1  }#{\cf1  }{\cf3 set}{\cf1  }{\cf20 1}{\cf1  }to{\cf1  }simply{\cf1  }keep{\cf1  }a{\cf1  }similar{\cf1  }architecture{\cf1  }as{\cf1  }Voxel-RCNN{\cf1 \par
+}{\cf1 \par
+}{\cf1         }SHARED_FC:{\cf1  }{\cf6 [}{\cf20 256},{\cf1  }{\cf20 256}{\cf6 ]}{\cf1 \par
+}{\cf1         }CLS_FC:{\cf1  }{\cf6 [}{\cf20 256},{\cf1  }{\cf20 256}{\cf6 ]}{\cf1 \par
+}{\cf1         }REG_FC:{\cf1  }{\cf6 [}{\cf20 256},{\cf1  }{\cf20 256}{\cf6 ]}{\cf1 \par
+}{\cf1         }DP_RATIO:{\cf1  }{\cf20 0}.01{\cf1 \par
+}{\cf1 \par
+}{\cf1         }NMS_CONFIG:{\cf1 \par
+}{\cf1             }TRAIN:{\cf1 \par
+}{\cf1                 }NMS_TYPE:{\cf1  }nms_gpu{\cf1 \par
+}{\cf1                 }MULTI_CLASSES_NMS:{\cf1  }False{\cf1 \par
+}{\cf1                 }NMS_PRE_MAXSIZE:{\cf1  }{\cf20 4000}{\cf1 \par
+}{\cf1                 }NMS_POST_MAXSIZE:{\cf1  }{\cf20 512}{\cf1 \par
+}{\cf1                 }NMS_THRESH:{\cf1  }{\cf20 0}.8{\cf1 \par
+}{\cf1             }TEST:{\cf1 \par
+}{\cf1                 }NMS_TYPE:{\cf1  }nms_gpu{\cf1 \par
+}{\cf1                 }MULTI_CLASSES_NMS:{\cf1  }False{\cf1 \par
+}{\cf1                 }USE_FAST_NMS:{\cf1  }True{\cf1 \par
+}{\cf1                 }SCORE_THRESH:{\cf1  }{\cf20 0}.0{\cf1 \par
+}{\cf1                 }NMS_PRE_MAXSIZE:{\cf1  }{\cf20 2000}{\cf1 \par
+}{\cf1                 }NMS_POST_MAXSIZE:{\cf1  }{\cf20 50}{\cf1 \par
+}{\cf1                 }NMS_THRESH:{\cf1  }{\cf20 0}.75{\cf1 \par
+}{\cf1 \par
+}{\cf1         }ROI_GRID_POOL:{\cf1 \par
+}{\cf1             }FEATURES_SOURCE:{\cf1  }{\cf6 [}{\cf13 'x_conv3'},{\cf13 'x_conv4'}{\cf6 ]}{\cf1 \par
+}{\cf1             }PRE_MLP:{\cf1  }True{\cf1 \par
+}{\cf1             }GRID_SIZE:{\cf1  }{\cf20 6}{\cf1 \par
+}{\cf1             }POOL_LAYERS:{\cf1 \par
+}{\cf1                 }x_conv3:{\cf1 \par
+}{\cf1                     }MLPS:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 32},{\cf1  }{\cf20 32}{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 32},{\cf1  }{\cf20 32}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }QUERY_RANGES:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 2},{\cf1  }{\cf20 2},{\cf1  }{\cf20 2}{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 4},{\cf1  }{\cf20 4},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }POOL_RADIUS:{\cf1  }{\cf6 [}{\cf20 0}.4,{\cf1  }{\cf20 0}.8{\cf6 ]}{\cf1 \par
+}{\cf1                     }NSAMPLE:{\cf1  }{\cf6 [}{\cf20 16},{\cf1  }{\cf20 16}{\cf6 ]}{\cf1 \par
+}{\cf1                     }POOL_METHOD:{\cf1  }max_pool{\cf1 \par
+}{\cf1                 }x_conv4:{\cf1 \par
+}{\cf1                     }MLPS:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 32},{\cf1  }{\cf20 32}{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 32},{\cf1  }{\cf20 32}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }QUERY_RANGES:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 2},{\cf1  }{\cf20 2},{\cf1  }{\cf20 2}{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 4},{\cf1  }{\cf20 4},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }POOL_RADIUS:{\cf1  }{\cf6 [}{\cf20 0}.8,{\cf1  }{\cf20 1}.6{\cf6 ]}{\cf1 \par
+}{\cf1                     }NSAMPLE:{\cf1  }{\cf6 [}{\cf20 16},{\cf1  }{\cf20 16}{\cf6 ]}{\cf1 \par
+}{\cf1                     }POOL_METHOD:{\cf1  }max_pool{\cf1 \par
+}{\cf1 \par
+}{\cf1         }ROI_GRID_POOL_MM:{\cf1 \par
+}{\cf1             }FEATURES_SOURCE:{\cf1  }{\cf6 [}{\cf13 'x_conv3'},{\cf13 'x_conv4'}{\cf6 ]}{\cf1 \par
+}{\cf1             }PRE_MLP:{\cf1  }True{\cf1 \par
+}{\cf1             }GRID_SIZE:{\cf1  }{\cf20 4}{\cf1 \par
+}{\cf1             }POOL_LAYERS:{\cf1 \par
+}{\cf1                 }x_conv3:{\cf1 \par
+}{\cf1                     }MLPS:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 32},{\cf1  }{\cf20 32}{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 32},{\cf1  }{\cf20 32}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }QUERY_RANGES:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 2},{\cf1  }{\cf20 2},{\cf1  }{\cf20 2}{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 4},{\cf1  }{\cf20 4},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }POOL_RADIUS:{\cf1  }{\cf6 [}{\cf20 0}.4,{\cf1  }{\cf20 0}.8{\cf6 ]}{\cf1 \par
+}{\cf1                     }NSAMPLE:{\cf1  }{\cf6 [}{\cf20 16},{\cf1  }{\cf20 16}{\cf6 ]}{\cf1 \par
+}{\cf1                     }POOL_METHOD:{\cf1  }max_pool{\cf1 \par
+}{\cf1                 }x_conv4:{\cf1 \par
+}{\cf1                     }MLPS:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 32},{\cf1  }{\cf20 32}{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 32},{\cf1  }{\cf20 32}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }QUERY_RANGES:{\cf1  }{\cf6 [}{\cf6 [}{\cf20 2},{\cf1  }{\cf20 2},{\cf1  }{\cf20 2}{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 4},{\cf1  }{\cf20 4},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }POOL_RADIUS:{\cf1  }{\cf6 [}{\cf20 0}.8,{\cf1  }{\cf20 1}.6{\cf6 ]}{\cf1 \par
+}{\cf1                     }NSAMPLE:{\cf1  }{\cf6 [}{\cf20 16},{\cf1  }{\cf20 16}{\cf6 ]}{\cf1 \par
+}{\cf1                     }POOL_METHOD:{\cf1  }max_pool{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }TARGET_CONFIG:{\cf1 \par
+}{\cf1             }BOX_CODER:{\cf1  }ResidualCoder{\cf1 \par
+}{\cf1             }STAGE0:{\cf1 \par
+}{\cf1             }STAGE0:{\cf1 \par
+}{\cf1                 }ROI_PER_IMAGE:{\cf1  }{\cf20 160}{\cf1 \par
+}{\cf1                 }FG_RATIO:{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1                 }SAMPLE_ROI_BY_EACH_CLASS:{\cf1  }True{\cf1 \par
+}{\cf1                 }CLS_SCORE_TYPE:{\cf1  }roi_iou_x{\cf1 \par
+}{\cf1                 }CLS_FG_THRESH:{\cf1  }{\cf6 [}{\cf20 0}.75,{\cf1  }{\cf20 0}.65,{\cf1  }{\cf20 0}.65{\cf6 ]}{\cf1 \par
+}{\cf1                 }CLS_BG_THRESH:{\cf1  }{\cf6 [}{\cf20 0}.25,{\cf1  }{\cf20 0}.15,{\cf1  }{\cf20 0}.15{\cf6 ]}{\cf1 \par
+}{\cf1                 }CLS_BG_THRESH_LO:{\cf1  }{\cf20 0}.1{\cf1 \par
+}{\cf1                 }HARD_BG_RATIO:{\cf1  }{\cf20 0}.8{\cf1 \par
+}{\cf1                 }REG_FG_THRESH:{\cf1  }{\cf6 [}{\cf20 0}.5,{\cf1  }{\cf20 0}.45,{\cf1  }{\cf20 0}.45{\cf6 ]}{\cf1 \par
+}{\cf1             }STAGE1:{\cf1 \par
+}{\cf1                 }ROI_PER_IMAGE:{\cf1  }{\cf20 160}{\cf1 \par
+}{\cf1                 }FG_RATIO:{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1                 }SAMPLE_ROI_BY_EACH_CLASS:{\cf1  }True{\cf1 \par
+}{\cf1                 }CLS_SCORE_TYPE:{\cf1  }roi_iou_x{\cf1 \par
+}{\cf1                 }CLS_FG_THRESH:{\cf1  }{\cf6 [}{\cf20 0}.75,{\cf1  }{\cf20 0}.65,{\cf1  }{\cf20 0}.65{\cf6 ]}{\cf1 \par
+}{\cf1                 }CLS_BG_THRESH:{\cf1  }{\cf6 [}{\cf20 0}.25,{\cf1  }{\cf20 0}.15,{\cf1  }{\cf20 0}.15{\cf6 ]}{\cf1 \par
+}{\cf1                 }CLS_BG_THRESH_LO:{\cf1  }{\cf20 0}.1{\cf1 \par
+}{\cf1                 }HARD_BG_RATIO:{\cf1  }{\cf20 0}.8{\cf1 \par
+}{\cf1                 }REG_FG_THRESH:{\cf1  }{\cf6 [}{\cf20 0}.55,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.5{\cf6 ]}{\cf1 \par
+}{\cf1             }STAGE2:{\cf1 \par
+}{\cf1                 }ROI_PER_IMAGE:{\cf1  }{\cf20 160}{\cf1 \par
+}{\cf1                 }FG_RATIO:{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1                 }SAMPLE_ROI_BY_EACH_CLASS:{\cf1  }True{\cf1 \par
+}{\cf1                 }CLS_SCORE_TYPE:{\cf1  }roi_iou_x{\cf1 \par
+}{\cf1                 }CLS_FG_THRESH:{\cf1  }{\cf6 [}{\cf20 0}.75,{\cf1  }{\cf20 0}.65,{\cf1  }{\cf20 0}.65{\cf6 ]}{\cf1 \par
+}{\cf1                 }CLS_BG_THRESH:{\cf1  }{\cf6 [}{\cf20 0}.25,{\cf1  }{\cf20 0}.15,{\cf1  }{\cf20 0}.15{\cf6 ]}{\cf1 \par
+}{\cf1                 }CLS_BG_THRESH_LO:{\cf1  }{\cf20 0}.1{\cf1 \par
+}{\cf1                 }HARD_BG_RATIO:{\cf1  }{\cf20 0}.8{\cf1 \par
+}{\cf1                 }REG_FG_THRESH:{\cf1  }{\cf6 [}{\cf20 0}.6,{\cf1  }{\cf20 0}.55,{\cf1  }{\cf20 0}.55{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }LOSS_CONFIG:{\cf1 \par
+}{\cf1             }CLS_LOSS:{\cf1  }BinaryCrossEntropy{\cf1 \par
+}{\cf1             }REG_LOSS:{\cf1  }smooth-l1{\cf1 \par
+}{\cf1             }CORNER_LOSS_REGULARIZATION:{\cf1  }True{\cf1 \par
+}{\cf1             }GRID_3D_IOU_LOSS:{\cf1  }False{\cf1 \par
+}{\cf1             }LOSS_WEIGHTS:{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                 }{\cf13 'rcnn_cls_weight'}:{\cf1  }{\cf20 1}.0,{\cf1 \par
+}{\cf1                 }{\cf13 'rcnn_reg_weight'}:{\cf1  }{\cf20 1}.0,{\cf1 \par
+}{\cf1                 }{\cf13 'rcnn_corner_weight'}:{\cf1  }{\cf20 1}.0,{\cf1 \par
+}{\cf1                 }{\cf13 'rcnn_iou3d_weight'}:{\cf1  }{\cf20 1}.0,{\cf1 \par
+}{\cf1                 }{\cf13 'code_weights'}:{\cf1  }{\cf6 [}{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }POST_PROCESSING:{\cf1 \par
+}{\cf1         }RECALL_THRESH_LIST:{\cf1  }{\cf6 [}{\cf20 0}.3,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.7{\cf6 ]}{\cf1 \par
+}{\cf1         }SCORE_THRESH:{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1         }OUTPUT_RAW_SCORE:{\cf1  }False{\cf1 \par
+}{\cf1         }EVAL_METRIC:{\cf1  }kitti{\cf1 \par
+}{\cf1         }NMS_CONFIG:{\cf1 \par
+}{\cf1             }MULTI_CLASSES_NMS:{\cf1  }False{\cf1 \par
+}{\cf1             }NMS_TYPE:{\cf1  }nms_gpu{\cf1 \par
+}{\cf1             }NMS_THRESH:{\cf1  }{\cf20 0}.1{\cf1 \par
+}{\cf1             }NMS_PRE_MAXSIZE:{\cf1  }{\cf20 4096}{\cf1 \par
+}{\cf1             }NMS_POST_MAXSIZE:{\cf1  }{\cf20 500}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}OPTIMIZATION:{\cf1 \par
+}{\cf1     }BATCH_SIZE_PER_GPU:{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1     }NUM_EPOCHS:{\cf1  }{\cf20 60}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }OPTIMIZER:{\cf1  }adam_onecycle{\cf1 \par
+}{\cf1     }LR:{\cf1  }{\cf20 0}.01{\cf1 \par
+}{\cf1     }WEIGHT_DECAY:{\cf1  }{\cf20 0}.01{\cf1 \par
+}{\cf1     }MOMENTUM:{\cf1  }{\cf20 0}.9{\cf1 \par
+}{\cf1 \par
+}{\cf1     }MOMS:{\cf1  }{\cf6 [}{\cf20 0}.95,{\cf1  }{\cf20 0}.85{\cf6 ]}{\cf1 \par
+}{\cf1     }PCT_START:{\cf1  }{\cf20 0}.4{\cf1 \par
+}{\cf1     }DIV_FACTOR:{\cf1  }{\cf20 10}{\cf1 \par
+}{\cf1     }DECAY_STEP_LIST:{\cf1  }{\cf6 [}{\cf20 35},{\cf1  }{\cf20 45}{\cf6 ]}{\cf1 \par
+}{\cf1     }LR_DECAY:{\cf1  }{\cf20 0}.1{\cf1 \par
+}{\cf1     }LR_CLIP:{\cf1  }{\cf20 0}.0000001{\cf1 \par
+}{\cf1 \par
+}{\cf1     }LR_WARMUP:{\cf1  }False{\cf1 \par
+}{\cf1     }WARMUP_EPOCH:{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }GRAD_NORM_CLIP:{\cf1  }{\cf20 10}{\cf1 \par
+}}

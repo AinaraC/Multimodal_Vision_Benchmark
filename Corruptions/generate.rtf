@@ -1,0 +1,55 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 {\cf3\b from}{\cf1  }{\cf13 pathlib}{\cf1  }import{\cf1  }Path{\cf1 \par
+}import{\cf1  }os{\cf1 \par
+}import{\cf1  }shutil{\cf1 \par
+}import{\cf1  }argparse{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }parse_arguments{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 parser}{\cf1  }{\cf6 =}{\cf1  }argparse.ArgumentParser{\cf6 (}{\cf9 description}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'Complete corrupted dataset info'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '-dr'},{\cf1 \par
+}{\cf1                     }{\cf13 '--dataset_root'},{\cf1 \par
+}{\cf1                     }{\cf3 type}{\cf1  }{\cf6 =}{\cf1  }str,{\cf1 \par
+}{\cf1                     }{\cf9 default}{\cf1  }{\cf6 =}{\cf1  }{\cf13 '/media/ainara/ainara/dataset/kitti'},{\cf1 \par
+}{\cf1                     }{\cf9 help}{\cf6 =}{\cf13 'root path to original dataset'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '-cr'},{\cf1 \par
+}{\cf1                     }{\cf13 '--corrupted_root'},{\cf1 \par
+}{\cf1                     }{\cf3 type}{\cf1  }{\cf6 =}{\cf1  }str,{\cf1 \par
+}{\cf1                     }{\cf9 default}{\cf1  }{\cf6 =}{\cf1  }{\cf13 '/media/ainara/ainara/dataset/kittiCorrupt'},{\cf1 \par
+}{\cf1                     }{\cf9 help}{\cf6 =}{\cf13 'root path to corrupted dataset'}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 arguments}{\cf1  }{\cf6 =}{\cf1  }parser.parse_args{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }arguments{\cf1 \par
+}{\cf1 \par
+}{\cf9 args}{\cf1  }{\cf6 =}{\cf1  }parse_arguments{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 path_imageset}{\cf1  }{\cf6 =}{\cf1  }os.path.join{\cf6 (}args.dataset_root,{\cf1  }{\cf13 'ImageSets/val.txt'}{\cf6 )}{\cf1 \par
+}with{\cf1  }open{\cf6 (}path_imageset,{\cf1  }{\cf13 'r'}{\cf6 )}{\cf1  }as{\cf1  }f:{\cf1 \par
+}{\cf1     }{\cf9 ids}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}int{\cf6 (}line.strip{\cf6 (}{\cf6 )}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }line{\cf1  }{\cf3\b in}{\cf1  }f{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf9 path_label}{\cf1  }{\cf6 =}{\cf1  }Path{\cf6 (}os.path.join{\cf6 (}args.dataset_root,{\cf1  }{\cf13 'training/label_2'}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf9 file_label}{\cf1  }{\cf6 =}{\cf1  }sorted{\cf6 (}{\cf6 [}f.name{\cf1  }{\cf3\b for}{\cf1  }f{\cf1  }{\cf3\b in}{\cf1  }path_label.iterdir{\cf6 (}{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }f.is_file{\cf6 (}{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 path_calib}{\cf1  }{\cf6 =}{\cf1  }Path{\cf6 (}os.path.join{\cf6 (}args.dataset_root,{\cf1  }{\cf13 'training/calib'}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf9 file_calib}{\cf1  }{\cf6 =}{\cf1  }sorted{\cf6 (}{\cf6 [}f.name{\cf1  }{\cf3\b for}{\cf1  }f{\cf1  }{\cf3\b in}{\cf1  }path_calib.iterdir{\cf6 (}{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }f.is_file{\cf6 (}{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 corruption_names}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}d{\cf1  }{\cf3\b for}{\cf1  }d{\cf1  }{\cf3\b in}{\cf1  }os.listdir{\cf6 (}args.corrupted_root{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }os.path.isdir{\cf6 (}os.path.join{\cf6 (}args.corrupted_root,{\cf1  }d{\cf6 )}{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf3\b for}{\cf1  }corruption{\cf1  }{\cf3\b in}{\cf1  }corruption_names:{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 corruption_path}{\cf1  }{\cf6 =}{\cf1  }Path{\cf6 (}os.path.join{\cf6 (}args.corrupted_root,{\cf1  }corruption{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 nums_severity}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}d{\cf6 [}-1{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }d{\cf1  }{\cf3\b in}{\cf1  }os.listdir{\cf6 (}corruption_path{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }os.path.isdir{\cf6 (}os.path.join{\cf6 (}corruption_path,{\cf1  }d{\cf6 )}{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }severity{\cf1  }{\cf3\b in}{\cf1  }nums_severity:{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }{\cf9 path_imageset_out}{\cf1  }{\cf6 =}{\cf1  }Path{\cf6 (}os.path.join{\cf6 (}args.corrupted_root,{\cf1  }corruption,{\cf1  }f{\cf13 'severity_\{severity\}/ImageSets'}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }path_imageset_out.mkdir{\cf6 (}{\cf9 parents}{\cf6 =}True,{\cf1  }{\cf9 exist_ok}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1         }shutil.copy{\cf6 (}path_imageset,{\cf1  }os.path.join{\cf6 (}path_imageset_out,{\cf1  }{\cf13 'val.txt'}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 out_path_label}{\cf1  }{\cf6 =}{\cf1  }Path{\cf6 (}os.path.join{\cf6 (}corruption_path,{\cf1  }f{\cf13 'severity_\{severity\}/training/label_2'}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }out_path_label.mkdir{\cf6 (}{\cf9 parents}{\cf6 =}True,{\cf1  }{\cf9 exist_ok}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 out_path_calib}{\cf1  }{\cf6 =}{\cf1  }Path{\cf6 (}os.path.join{\cf6 (}corruption_path,{\cf1  }f{\cf13 'severity_\{severity\}/training/calib'}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }Path{\cf6 (}out_path_calib{\cf6 )}.mkdir{\cf6 (}{\cf9 parents}{\cf6 =}True,{\cf1  }{\cf9 exist_ok}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }ids:{\cf1 \par
+}{\cf1             }shutil.copy{\cf6 (}os.path.join{\cf6 (}path_label,{\cf1  }file_label{\cf6 [}i{\cf6 ]}{\cf6 )},{\cf1  }out_path_label{\cf6 )}{\cf1 \par
+}{\cf1             }shutil.copy{\cf6 (}os.path.join{\cf6 (}path_calib,{\cf1  }file_calib{\cf6 [}i{\cf6 ]}{\cf6 )},{\cf1  }out_path_calib{\cf6 )}{\cf1 \par
+}}

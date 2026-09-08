@@ -1,0 +1,120 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }pandas{\cf1  }as{\cf1  }pd{\cf1 \par
+}import{\cf1  }matplotlib.pyplot{\cf1  }as{\cf1  }plt{\cf1 \par
+}{\cf1 \par
+}{\cf9 modelos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 "virconv"},{\cf1  }{\cf13 "mvxnet"},{\cf1  }{\cf13 "bevfusion"}{\cf6 ]}{\cf1 \par
+}{\cf9 traducir_cls}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf13 "Car"}:{\cf13 "Coche"},{\cf13 "Pedestrian"}:{\cf13 "Peat{\u243}n"},{\cf1  }{\cf13 "Cyclist"}:{\cf1  }{\cf13 "Ciclista"}{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf9 metricas}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'aos'},{\cf1  }{\cf13 '3d'}{\cf6 ]}{\cf1 \par
+}{\cf9 rangos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 (}{\cf20 0},30{\cf6 )},{\cf1  }{\cf6 (}{\cf20 30},50{\cf6 )},{\cf1  }{\cf6 (}{\cf20 50},80{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf9 clases}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'Pedestrian'},{\cf1  }{\cf13 'Car'},{\cf1  }{\cf13 'Cyclist'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i ######################## GRAFICA LINEAS NO CAMARA RANGOS ########################}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Crear figura con subplots}{\cf1 \par
+}fig,{\cf1  }{\cf9 axes}{\cf1  }{\cf6 =}{\cf1  }plt.subplots{\cf6 (}{\cf9 nrows}{\cf6 =}{\cf20 3},{\cf1  }{\cf9 ncols}{\cf6 =}{\cf20 2},{\cf1  }{\cf9 figsize}{\cf6 =}{\cf6 (}{\cf20 15},{\cf1  }{\cf20 12}{\cf6 )},{\cf1  }{\cf9 sharex}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Recorrer por clase y m{\u233}trica}{\cf1 \par
+}{\cf3\b for}{\cf1  }i,{\cf1  }clase{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}clases{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }j,{\cf1  }metrica{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}metricas{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 ax}{\cf1  }{\cf6 =}{\cf1  }axes{\cf6 [}i,{\cf1  }j{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }modelo{\cf1  }{\cf3\b in}{\cf1  }modelos:{\cf1 \par
+}{\cf1             }{\cf9 df}{\cf1  }{\cf6 =}{\cf1  }pd.read_csv{\cf6 (}f{\cf13 "\{modelo\}/\{modelo\}_corruption_eval.csv"}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 df}{\cf1  }{\cf6 =}{\cf1  }df{\cf6 [}df{\cf6 [}{\cf13 'difficulty'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'moderate'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 rce_vals}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 etiquetas_rango}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }min_d,{\cf1  }max_d{\cf1  }{\cf3\b in}{\cf1  }rangos:{\cf1 \par
+}{\cf1                 }#{\cf1  }Resultado{\cf1  }original{\cf1 \par
+}{\cf1                 }{\cf9 val_original}{\cf1  }{\cf6 =}{\cf1  }df{\cf6 [}{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'corruption'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'original'}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'class'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }clase{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'metric'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }metrica{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'min dist'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }min_d{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'max dist'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }max_d{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf6 ]}{\cf6 [}{\cf13 'result'}{\cf6 ]}.values{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }#{\cf1  }Resultado{\cf1  }con{\cf1  }corrupci{\u243}n{\cf1  }sin{\cf1  }c{\u225}mara{\cf1 \par
+}{\cf1                 }{\cf9 val_corrup}{\cf1  }{\cf6 =}{\cf1  }df{\cf6 [}{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'corruption'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'no_camera'}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'class'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }clase{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'metric'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }metrica{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'min dist'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }min_d{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                     }{\cf6 (}df{\cf6 [}{\cf13 'max dist'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }max_d{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf6 ]}{\cf6 [}{\cf13 'result'}{\cf6 ]}.values{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }len{\cf6 (}val_original{\cf6 )}{\cf1  }>{\cf1  }{\cf20 0}{\cf1  }and{\cf1  }len{\cf6 (}val_corrup{\cf6 )}{\cf1  }>{\cf1  }{\cf20 0}{\cf1  }and{\cf1  }val_original{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                     }{\cf9 rce}{\cf1  }{\cf6 =}{\cf1  }{\cf20 100}{\cf1  }*{\cf1  }{\cf6 (}val_original{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }-{\cf1  }val_corrup{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1  }/{\cf1  }val_original{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                     }rce_vals.append{\cf6 (}rce{\cf6 )}{\cf1 \par
+}{\cf1                     }etiquetas_rango.append{\cf6 (}f{\cf13 "\{min_d\}-\{max_d\}"}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }rce_vals:{\cf1 \par
+}{\cf1                 }ax.plot{\cf6 (}etiquetas_rango,{\cf1  }rce_vals,{\cf1  }{\cf9 marker}{\cf6 =}{\cf13 'o'},{\cf1  }{\cf9 label}{\cf6 =}modelo{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }ax.set_title{\cf6 (}f{\cf13 '\{clase.upper()\} - \{metrica.upper()\}'}{\cf6 )}{\cf1 \par
+}{\cf1         }ax.set_ylabel{\cf6 (}{\cf13 'RCE (%)'}{\cf6 )}{\cf1 \par
+}{\cf1         }ax.grid{\cf6 (}True{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf9 i}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 2}:{\cf1 \par
+}{\cf1             }ax.set_xlabel{\cf6 (}{\cf13 'Rango de distancia'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf9 i}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }and{\cf1  }{\cf9 j}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}:{\cf1 \par
+}{\cf1             }ax.legend{\cf6 (}{\cf9 title}{\cf6 =}{\cf13 'Modelo'},{\cf1  }{\cf9 loc}{\cf6 =}{\cf13 'upper right'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}plt.tight_layout{\cf6 (}{\cf6 )}{\cf1 \par
+}plt.suptitle{\cf6 (}{\cf13 'RCE por clase, m{\u233}trica y modelo\\nCorrupci{\u243}n: Sin c{\u225}mara - Dificultad: Moderada'},{\cf1  }{\cf9 fontsize}{\cf6 =}{\cf20 16},{\cf1  }{\cf9 y}{\cf6 =}{\cf20 1}.03{\cf6 )}{\cf1 \par
+}plt.subplots_adjust{\cf6 (}{\cf9 top}{\cf6 =}{\cf20 0}.92{\cf6 )}{\cf1 \par
+}plt.savefig{\cf6 (}{\cf13 'redundancia'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf9 metricas}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'aos'},{\cf1  }{\cf13 '3d'}{\cf6 ]}{\cf1 \par
+}{\cf9 rangos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 (}{\cf20 0},30{\cf6 )},{\cf1  }{\cf6 (}{\cf20 30},50{\cf6 )},{\cf1  }{\cf6 (}{\cf20 50},80{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf9 clases}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'Pedestrian'},{\cf1  }{\cf13 'Car'},{\cf1  }{\cf13 'Cyclist'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Filtrar dificultad 'moderate'}{\cf1 \par
+}{\cf1 \par
+}{\cf9 resultado}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Recorrer por clase y m{\u233}trica}{\cf1 \par
+}{\cf3\b for}{\cf1  }i,{\cf1  }clase{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}clases{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }j,{\cf1  }metrica{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}metricas{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 ax}{\cf1  }{\cf6 =}{\cf1  }axes{\cf6 [}i,{\cf1  }j{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }modelo{\cf1  }{\cf3\b in}{\cf1  }modelos:{\cf1 \par
+}{\cf1             }{\cf9 df}{\cf1  }{\cf6 =}{\cf1  }pd.read_csv{\cf6 (}f{\cf13 "\{modelo\}/\{modelo\}_corruption_eval.csv"}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 df}{\cf1  }{\cf6 =}{\cf1  }df{\cf6 [}df{\cf6 [}{\cf13 'difficulty'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'moderate'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 rce_vals}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 etiquetas_rango}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }#{\cf1  }Resultado{\cf1  }original{\cf1 \par
+}{\cf1             }{\cf9 val_original}{\cf1  }{\cf6 =}{\cf1  }df{\cf6 [}{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'corruption'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'original'}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'class'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }clase{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'metric'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }metrica{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'min dist'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'max dist'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 80}{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf6 [}{\cf13 'result'}{\cf6 ]}.values{\cf1 \par
+}{\cf1 \par
+}{\cf1             }#{\cf1  }Resultado{\cf1  }con{\cf1  }corrupci{\u243}n{\cf1  }sin{\cf1  }c{\u225}mara{\cf1 \par
+}{\cf1             }{\cf9 val_corrup}{\cf1  }{\cf6 =}{\cf1  }df{\cf6 [}{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'corruption'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'no_camera'}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'class'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }clase{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'metric'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }metrica{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'min dist'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                 }{\cf6 (}df{\cf6 [}{\cf13 'max dist'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 80}{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf6 [}{\cf13 'result'}{\cf6 ]}.values{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }len{\cf6 (}val_original{\cf6 )}{\cf1  }>{\cf1  }{\cf20 0}{\cf1  }and{\cf1  }len{\cf6 (}val_corrup{\cf6 )}{\cf1  }>{\cf1  }{\cf20 0}{\cf1  }and{\cf1  }val_original{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf9 rce}{\cf1  }{\cf6 =}{\cf1  }{\cf20 100}{\cf1  }*{\cf1  }{\cf6 (}val_original{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }-{\cf1  }val_corrup{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1  }/{\cf1  }val_original{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                 }resultado.append{\cf6 (}{\cf6 \{}{\cf1 \par
+}{\cf1                     }{\cf13 'modelo'}:{\cf1  }modelo,{\cf1 \par
+}{\cf1                     }{\cf13 'clase'}:{\cf1  }clase,{\cf1 \par
+}{\cf1                     }{\cf13 'metrica'}:{\cf1  }metrica,{\cf1 \par
+}{\cf1                     }{\cf13 'rce'}:{\cf1  }rce{\cf1 \par
+}{\cf1                 }{\cf6 \}}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 df_redundancia}{\cf1  }{\cf6 =}{\cf1  }pd.DataFrame{\cf6 (}resultado{\cf6 )}{\cf1 \par
+}df_redundancia.to_csv{\cf6 (}{\cf13 'redundancia(0,80).csv'}{\cf6 )}{\cf1 \par
+}}

@@ -1,0 +1,6 @@
+build/
+*.so
+*.gch
+jetson_packages/virconv/spconv/build/
+jetson_packages/Fpointnet
+jetson_packages/Fpointpillars

@@ -1,0 +1,1976 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }sys{\cf1 \par
+}sys.path.append{\cf6 (}{\cf13 'utils'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}import{\cf1  }imgaug.augmenters{\cf1  }as{\cf1  }iaa{\cf1 \par
+}import{\cf1  }weather.Automold{\cf1  }as{\cf1  }am{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 torchvision.utils}{\cf1  }import{\cf1  }save_image{\cf1 \par
+}import{\cf1  }torch{\cf1 \par
+}import{\cf1  }cv2{\cf1 \par
+}import{\cf1  }numpy{\cf1  }as{\cf1  }np{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 scipy.ndimage}{\cf1  }import{\cf1  }zoom{\cf1  }as{\cf1  }scizoom{\cf1 \par
+}{\cf1 \par
+}import{\cf1  }torch.nn.functional{\cf1  }as{\cf1  }F{\cf1  }{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 utils.tps_grid_gen}{\cf1  }import{\cf1  }TPSGridGen{\cf1 \par
+}import{\cf1  }skimage{\cf1  }as{\cf1  }sk{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i #YOU NEED : pip install imagecorruptions}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}import{\cf1  }scipy.stats{\cf1  }as{\cf1  }st{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_gaussian_kernel{\cf6 (}{\cf9 kernlen}{\cf6 =}{\cf20 5},{\cf1  }{\cf9 nsig}{\cf6 =}{\cf20 3}{\cf6 )}:{\cf1   }{\cf1 \par
+}{\cf1     }{\cf9 interval}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf20 2}*nsig+1.{\cf6 )}/kernlen{\cf1    }{\cf1 \par
+}{\cf1     }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }np.linspace{\cf6 (}-nsig-interval/2.,{\cf1  }nsig+interval/2.,{\cf1  }kernlen+1{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1     }{\cf9 kern1d}{\cf1  }{\cf6 =}{\cf1  }np.diff{\cf6 (}st.norm.cdf{\cf6 (}x{\cf6 )}{\cf6 )}{\cf1   }{\cf1 \par
+}{\cf1     }{\cf9 kernel_raw}{\cf1  }{\cf6 =}{\cf1  }np.sqrt{\cf6 (}np.outer{\cf6 (}kern1d,{\cf1  }kern1d{\cf6 )}{\cf6 )}{\cf1   }{\cf1 \par
+}{\cf1     }{\cf9 kernel}{\cf1  }{\cf6 =}{\cf1  }kernel_raw/kernel_raw.sum{\cf6 (}{\cf6 )}{\cf1             }{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }kernel{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddDarkness:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }seed{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1         }np.random.seed{\cf6 (}seed{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf9 severity}{\cf1  }{\cf6 =}{\cf1  }self.severity{\cf1 \par
+}{\cf1         }{\cf9 s}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.60,{\cf1  }{\cf20 0}.50,{\cf1  }{\cf20 0}.40,{\cf1  }{\cf20 0}.30,{\cf1  }{\cf20 0}.2{\cf6 ]}{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 image}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}image{\cf6 )}{\cf1  }/{\cf1  }{\cf20 255}.{\cf1 \par
+}{\cf1         }{\cf9 image_scaled}{\cf1  }{\cf6 =}{\cf1  }self.imadjust{\cf6 (}image,{\cf1  }image.min{\cf6 (}{\cf6 )},{\cf1  }image.max{\cf6 (}{\cf6 )},{\cf1  }{\cf20 0},{\cf1  }s,{\cf1  }{\cf9 gamma}{\cf6 =}{\cf20 2}.{\cf6 )}{\cf1  }*{\cf1  }{\cf20 255}{\cf1 \par
+}{\cf1         }{\cf9 image_scaled}{\cf1  }{\cf6 =}{\cf1  }self.poisson_gaussian_noise{\cf6 (}image_scaled,{\cf1  }{\cf9 severity}{\cf6 =}severity{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_scaled{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }def{\cf1  }imadjust{\cf6 (}self,x,{\cf1  }a,{\cf1  }b,{\cf1  }c,{\cf1  }d,{\cf1  }{\cf9 gamma}{\cf6 =}{\cf20 1}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 y}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf6 (}{\cf6 (}x{\cf1  }-{\cf1  }a{\cf6 )}{\cf1  }/{\cf1  }{\cf6 (}b{\cf1  }-{\cf1  }a{\cf6 )}{\cf6 )}{\cf1  }**{\cf1  }gamma{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}d{\cf1  }-{\cf1  }c{\cf6 )}{\cf1  }+{\cf1  }c{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }y{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }poisson_gaussian_noise{\cf6 (}self,{\cf1  }image,{\cf1  }severity{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 s_poisson}{\cf1  }{\cf6 =}{\cf1  }{\cf20 10}{\cf1  }*{\cf1  }{\cf6 [}{\cf20 45},{\cf1  }{\cf20 35}{\cf1  },25,{\cf1  }{\cf20 12},{\cf1  }{\cf20 6}{\cf6 ]}{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 image}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}image{\cf6 )}{\cf1  }/{\cf1  }{\cf20 255}.{\cf1 \par
+}{\cf1         }{\cf9 image}{\cf1  }{\cf6 =}{\cf1  }np.clip{\cf6 (}np.random.poisson{\cf6 (}image{\cf1  }*{\cf1  }s_poisson{\cf6 )}{\cf1  }/{\cf1  }s_poisson,{\cf1  }{\cf20 0},{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 255}{\cf1 \par
+}{\cf1         }{\cf9 c_gauss}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}.1{\cf1  }*{\cf1  }{\cf6 [}.08,{\cf1   }{\cf20 0}.18,{\cf1  }{\cf20 0}.26,{\cf1  }{\cf20 0}.34,{\cf1  }{\cf20 0}.42{\cf6 ]}{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 image}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}image{\cf6 )}{\cf1  }/{\cf1  }{\cf20 255}.{\cf1 \par
+}{\cf1         }{\cf9 image}{\cf1  }{\cf6 =}{\cf1  }np.clip{\cf6 (}image{\cf1  }+{\cf1  }np.random.normal{\cf6 (}{\cf9 size}{\cf6 =}image.shape,{\cf1  }{\cf9 scale}{\cf6 =}{\cf1  }c_gauss{\cf6 )},{\cf1  }{\cf20 0},{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 255}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }np.uint8{\cf6 (}image{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddBrightness:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }seed{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1         }np.random.seed{\cf6 (}seed{\cf6 )}{\cf1     }{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1             }points{\cf1  }should{\cf1  }be{\cf1  }tensor{\cf1  }:{\cf1  }N{\cf1  }*{\cf1  }{\cf20 4}{\cf1         }{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 severity}{\cf1  }{\cf6 =}{\cf1  }self.severity{\cf1        }{\cf1 \par
+}{\cf1         }{\cf9 s}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.3,{\cf1  }{\cf20 0}.4,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.6,{\cf1  }{\cf20 0}.7{\cf6 ]}{\cf6 [}severity{\cf1  }-{\cf1  }{\cf20 1}{\cf6 ]}{\cf1        }{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }{\cf9 image_hsv}{\cf1  }{\cf6 =}{\cf1  }cv2.cvtColor{\cf6 (}image_rgb_255,{\cf1  }cv2.COLOR_RGB2HSV{\cf6 )}.astype{\cf6 (}np.int64{\cf6 )}{\cf1 \par
+}{\cf1         }image_hsv{\cf6 [}:,{\cf1  }:,{\cf1  }{\cf20 2}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.clip{\cf6 (}image_hsv{\cf6 [}:,{\cf1  }:,{\cf1  }{\cf20 2}{\cf6 ]}{\cf1  }+{\cf1  }{\cf20 256}{\cf1  }*{\cf1  }s,{\cf1  }{\cf20 0},{\cf1  }{\cf20 255}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_hsv}{\cf1  }{\cf6 =}{\cf1  }image_hsv.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }cv2.cvtColor{\cf6 (}image_hsv,{\cf1  }cv2.COLOR_HSV2RGB{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug{\cf1  }{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # import skimage as sk}{\cf1 \par
+}{\cf2\i # """ brightness """}{\cf1 \par
+}{\cf2\i # class ImageAddBrightness():}{\cf1 \par
+}{\cf2\i #     def __init__(self, severity, seed) -> None:}{\cf1 \par
+}{\cf2\i #         self.severity = severity}{\cf1 \par
+}{\cf2\i #         np.random.seed(seed)    }{\cf1 \par
+}{\cf2\i #     def __call__(self, x) -> np.array:}{\cf1 \par
+}{\cf2\i #         """}{\cf1 \par
+}{\cf2\i #             image should be numpy array : H * W * 3}{\cf1 \par
+}{\cf2\i #             in uint8 (0~255) and RGB            points should be tensor :       }{\cf1 \par
+}{\cf2\i #         """}{\cf1 \par
+}{\cf2\i #         severity = self.severity       }{\cf1 \par
+}{\cf2\i #         s = [0.3, 0.4, 0.5, 0.6, 0.7][severity - 1]    }{\cf1 \par
+}{\cf2\i #         x = np.array(x) / 255.   }{\cf1 \par
+}{\cf2\i #         if len(x.shape) < 3 or x.shape[2] < 3:}{\cf1 \par
+}{\cf2\i #             x = np.clip(x + s, 0, 1)}{\cf1 \par
+}{\cf2\i #         else:}{\cf1 \par
+}{\cf2\i #             x = sk.color.rgb2hsv(x)}{\cf1 \par
+}{\cf2\i #             x[:, :, 2] = np.clip(x[:, :, 2] + s, 0, 1)}{\cf1 \par
+}{\cf2\i #             x = sk.color.hsv2rgb(x)}{\cf1 \par
+}{\cf2\i #         return np.clip(x * 255, 0, 255).astype(np.uint8) }{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddSunlight:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }seed{\cf6 )}:{\cf1 \par
+}{\cf1         }self.intensity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1         }np.random.seed{\cf6 (}seed{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1         }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 severity}{\cf1  }{\cf6 =}{\cf1  }self.intensity{\cf1 \par
+}{\cf1         }{\cf9 s}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}.5,{\cf1  }.6,{\cf1  }.7,{\cf1  }.8,{\cf1  }.9{\cf6 ]}{\cf6 [}severity{\cf1  }-{\cf1  }{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 angle}{\cf1  }{\cf6 =}{\cf1  }np.random.uniform{\cf6 (}-40,{\cf1  }{\cf20 40}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }h,{\cf1  }w,{\cf1  }{\cf9 _}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf1 \par
+}{\cf1 \par
+}{\cf1         }y_coords,{\cf1  }{\cf9 x_coords}{\cf1  }{\cf6 =}{\cf1  }np.meshgrid{\cf6 (}np.arange{\cf6 (}h{\cf6 )},{\cf1  }np.arange{\cf6 (}w{\cf6 )},{\cf1  }{\cf9 indexing}{\cf6 =}{\cf13 'ij'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1       	}#{\cf1  }Generate{\cf1  }projection{\cf1 \par
+}{\cf1         }{\cf9 direction_x}{\cf1  }{\cf6 =}{\cf1  }np.sin{\cf6 (}np.radians{\cf6 (}angle{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 direction_y}{\cf1  }{\cf6 =}{\cf1  }np.cos{\cf6 (}np.radians{\cf6 (}angle{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 projection}{\cf1  }{\cf6 =}{\cf1  }y_coords{\cf1  }*{\cf1  }direction_y{\cf1  }+{\cf1  }x_coords{\cf1  }*{\cf1  }direction_x{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }Normalize{\cf1 \par
+}{\cf1         }{\cf9 min_proj}{\cf1  }{\cf6 =}{\cf1  }projection.min{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 max_proj}{\cf1  }{\cf6 =}{\cf1  }projection.max{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 norm}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}projection{\cf1  }-{\cf1  }min_proj{\cf6 )}{\cf1  }/{\cf1  }{\cf6 (}max_proj{\cf1  }-{\cf1  }min_proj{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }Generate{\cf1  }gradient{\cf1 \par
+}{\cf1         }{\cf9 gradient}{\cf1  }{\cf6 =}{\cf1  }s{\cf1  }*{\cf1  }{\cf6 (}{\cf6 (}{\cf20 1}{\cf1  }-{\cf1  }norm{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}{\cf20 1}{\cf1  }-{\cf1  }{\cf20 0}.4{\cf6 )}{\cf1  }+{\cf1  }{\cf20 0}.4{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }Paso{\cf1  }{\cf20 5}:{\cf1  }Convertir{\cf1  }a{\cf1  }RGB{\cf1  }y{\cf1  }escalar{\cf1 \par
+}{\cf1         }{\cf9 sunlight_rgb}{\cf1  }{\cf6 =}{\cf1  }np.repeat{\cf6 (}{\cf6 (}gradient{\cf6 [}:,{\cf1  }:,{\cf1  }np.newaxis{\cf6 ]}{\cf1  }*{\cf1  }{\cf20 255}{\cf6 )},{\cf1  }{\cf20 3},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 2}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }Paso{\cf1  }{\cf20 6}:{\cf1  }Mezclar{\cf1  }con{\cf1  }la{\cf1  }imagen{\cf1  }original{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }cv2.addWeighted{\cf6 (}image,{\cf1  }{\cf20 1},{\cf1  }sunlight_rgb,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmdet3d.structures.bbox_3d.utils}{\cf1  }import{\cf1  }points_cam2img{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImagePointAddSun{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }print{\cf6 (}self.__class__.__name__,{\cf1  }{\cf13 ': please set numpy seed !'}{\cf6 )}{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }points,{\cf1  }lidar2img,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1 \par
+}{\cf1             }points{\cf1  }should{\cf1  }be{\cf1  }tensor{\cf1  }:{\cf1  }N{\cf1  }*{\cf1  }{\cf20 4}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 severity}{\cf1  }{\cf6 =}{\cf1  }self.severity{\cf1 \par
+}{\cf1         }{\cf9 temp_dict_trans_information}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }self.sun_sim_img{\cf6 (}image,{\cf1  }lidar2img,{\cf1  }severity,{\cf1  }watch_img,{\cf1  }file_path,{\cf1  }temp_dict_trans_information{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 points_aug}{\cf1  }{\cf6 =}{\cf1  }self.sun_sim_point{\cf6 (}points,{\cf1  }lidar2img,{\cf1  }severity,{\cf1  }watch_img,{\cf1  }file_path,{\cf1  }temp_dict_trans_information{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug,{\cf1  }points_aug{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }sun_sim_img{\cf6 (}self,{\cf1  }image,{\cf1  }lidar2img,{\cf1  }severity,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''},{\cf1  }{\cf9 temp_dict_trans_information}{\cf6 =}{\cf6 \{}{\cf6 \}}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 sun_radius}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 30},{\cf1  }{\cf20 40},{\cf1  }{\cf20 50},{\cf1  }{\cf20 60},{\cf1  }{\cf20 70}{\cf6 ]}{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }#{\cf1  }corruption{\cf1  }severity-independent{\cf1  }parameters{\cf1 \par
+}{\cf1         }{\cf9 no_of_flare_circles}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1         }{\cf9 src_color}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf20 255},255,255{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img_height}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 sun_u_range}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.25,{\cf1  }{\cf20 0}.75{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 sun_v_range}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.30,{\cf1  }{\cf20 0}.45{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 sun_u}{\cf1  }{\cf6 =}{\cf1  }np.random.uniform{\cf6 (}*sun_u_range{\cf6 )}*img_width{\cf1 \par
+}{\cf1         }{\cf9 sun_v}{\cf1  }{\cf6 =}{\cf1  }np.random.uniform{\cf6 (}*sun_v_range{\cf6 )}*img_height{\cf1 \par
+}{\cf1         }{\cf9 sun_uv}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}sun_u,{\cf1  }sun_v{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 img_center_coor}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}image.shape{\cf6 [}{\cf20 1}{\cf6 ]}/2,{\cf1  }image.shape{\cf6 [}{\cf20 0}{\cf6 ]}/2{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 sun_uv_to_center}{\cf1  }{\cf6 =}{\cf1  }img_center_coor{\cf1  }-{\cf1  }sun_uv{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 sun_flare_line_angle}{\cf1  }{\cf6 =}{\cf1  }np.arctan{\cf6 (}sun_uv_to_center{\cf6 [}{\cf20 1}{\cf6 ]}/sun_uv_to_center{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 image_uint8_rgb}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 flare_image_rgb}{\cf1  }{\cf6 =}{\cf1  }image.astype{\cf6 (}np.float64{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 mainflare_mask}{\cf1  }{\cf6 =}{\cf1  }np.zeros_like{\cf6 (}image{\cf6 )}.astype{\cf6 (}np.float64{\cf6 )}{\cf1 \par
+}{\cf1         }try:{\cf1 \par
+}{\cf1             }flare_image_rgb,{\cf1  }{\cf9 mainflare_mask}{\cf1  }{\cf6 =}{\cf1  }am.add_sun_flare{\cf6 (}{\cf1 \par
+}{\cf1                 }image_uint8_rgb,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 flare_center}{\cf6 =}sun_uv,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 angle}{\cf6 =}sun_flare_line_angle,{\cf1 \par
+}{\cf1                 }{\cf9 no_of_flare_circles}{\cf1  }{\cf6 =}{\cf1  }no_of_flare_circles,{\cf1 \par
+}{\cf1                 }{\cf9 src_radius}{\cf6 =}sun_radius,{\cf1 \par
+}{\cf1                 }{\cf9 src_color}{\cf6 =}src_color{\cf1 \par
+}{\cf1                 }{\cf6 )}{\cf1 \par
+}{\cf1         }except:{\cf1 \par
+}{\cf1             }pass{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 flare_image_rgb_uint8}{\cf1  }{\cf6 =}{\cf1  }flare_image_rgb.copy{\cf6 (}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }#################################################################{\cf1 \par
+}{\cf1         }#{\cf1  }split{\cf1   }image{\cf1   }and{\cf1   }point{\cf1 \par
+}{\cf1         }#################################################################{\cf1 \par
+}{\cf1         }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf6 \}}{\cf1 \par
+}{\cf1         }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf6 [}{\cf13 'mainflare_mask'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mainflare_mask{\cf1 \par
+}{\cf1         }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf6 [}{\cf13 'sun_uv'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }sun_uv{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 flare_image_save}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}flare_image_rgb{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.{\cf1 \par
+}{\cf1             }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf6 [}{\cf13 'flare_image_save'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }flare_image_save{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }flare_image_rgb_uint8{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }sun_sim_point{\cf6 (}self,{\cf1  }points,{\cf1  }lidar2img,{\cf1  }severity,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''},{\cf1  }{\cf9 temp_dict_trans_information}{\cf6 =}{\cf6 \{}{\cf6 \}}{\cf6 )}:{\cf1 \par
+}{\cf1         }#{\cf1  }get{\cf1  }data{\cf1 \par
+}{\cf1         }#{\cf1  }{\cf9 points}{\cf1  }{\cf6 =}{\cf1  }results{\cf6 [}{\cf13 'points'}{\cf6 ]}.tensor{\cf1 \par
+}{\cf1         }#{\cf1  }{\cf9 lidar2img}{\cf1  }{\cf6 =}{\cf1  }results{\cf6 [}{\cf13 'lidar2img'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 mainflare_mask}{\cf1  }{\cf6 =}{\cf1  }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf6 [}{\cf13 'mainflare_mask'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 sun_uv}{\cf1  }{\cf6 =}{\cf1  }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf6 [}{\cf13 'sun_uv'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 noisy_point_ratio}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.004,{\cf1  }{\cf20 0}.008,{\cf1  }{\cf20 0}.012,{\cf1  }{\cf20 0}.016,{\cf1  }{\cf20 0}.020{\cf6 ]}{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }not{\cf1  }{\cf6 (}{\cf9 mainflare_mask}{\cf6 =}{\cf6 =}{\cf20 0}{\cf6 )}.all{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1             }#{\cf1  }remove{\cf1  }the{\cf1  }points{\cf1  }{\cf3\b in}{\cf1  }sun{\cf1  }use{\cf1  }a{\cf1  }radias{\cf1 \par
+}{\cf1             }{\cf9 mask_ther}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}.8{\cf1 \par
+}{\cf1             }{\cf9 mainflare_mask_lidar}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}mainflare_mask{\cf6 [}...,0{\cf6 ]}{\cf1  }>{\cf1  }{\cf6 (}mask_ther*255.{\cf6 )}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 sun_radis_nonzero}{\cf1  }{\cf6 =}{\cf1  }mainflare_mask_lidar.sum{\cf6 (}{\cf20 0}{\cf6 )}.nonzero{\cf6 (}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 sun_radis}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}sun_radis_nonzero.max{\cf6 (}{\cf6 )}{\cf1  }-{\cf1  }sun_radis_nonzero.min{\cf6 (}{\cf6 )}{\cf6 )}{\cf1  }/{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1             }{\cf9 pts_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}points{\cf6 [}:,:3{\cf6 ]},{\cf1  }{\cf9 proj_mat}{\cf6 =}lidar2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 pts_2d}{\cf1  }{\cf6 =}{\cf1  }pts_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 pts_depth}{\cf1  }{\cf6 =}{\cf1  }pts_uvd{\cf6 [}:,2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 pts_keep_flag}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf6 (}pts_2d{\cf1  }-{\cf1  }sun_uv{\cf6 [}None{\cf6 ]}{\cf6 )}.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}.sqrt{\cf6 (}{\cf6 )}{\cf1  }>{\cf1  }sun_radis{\cf6 )}{\cf1  }+{\cf1  }{\cf6 (}pts_depth<{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 points_keep}{\cf1  }{\cf6 =}{\cf1  }points{\cf6 [}pts_keep_flag{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 mask_ther}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}.8{\cf1 \par
+}{\cf1             }{\cf9 mainflare_mask_lidar}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}mainflare_mask{\cf6 [}...,0{\cf6 ]}{\cf1  }>{\cf1  }{\cf6 (}mask_ther*255.{\cf6 )}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 pts_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}points{\cf6 [}:,:3{\cf6 ]},{\cf1  }{\cf9 proj_mat}{\cf6 =}lidar2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 pts_2d}{\cf1  }{\cf6 =}{\cf1  }pts_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 pts_depth}{\cf1  }{\cf6 =}{\cf1  }pts_uvd{\cf6 [}:,2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 points_keep}{\cf1  }{\cf6 =}{\cf1  }points{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 mainflare_mask_lidar_point}{\cf1  }{\cf6 =}{\cf1  }np.repeat{\cf6 (}mainflare_mask_lidar{\cf6 [}:,:,None{\cf6 ]},{\cf1  }{\cf20 3},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 2}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 255}{\cf1 \par
+}{\cf1             }{\cf9 mainflare_mask_lidar_point}{\cf1  }{\cf6 =}{\cf1  }mainflare_mask_lidar_point.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 front_pts_2d}{\cf1  }{\cf6 =}{\cf1  }pts_2d{\cf6 [}pts_depth>0{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }coor{\cf1  }{\cf3\b in}{\cf1  }front_pts_2d:{\cf1 \par
+}{\cf1                 }{\cf9 point_size}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1                 }{\cf9 point_color}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf20 255},0,0{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 thickness}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1                 }cv2.circle{\cf6 (}mainflare_mask_lidar_point,{\cf1  }{\cf6 (}int{\cf6 (}coor{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )},int{\cf6 (}coor{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )},{\cf1  }point_size,{\cf1  }point_color,{\cf1  }thickness{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 mainflare_mask_lidar_point_save}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}mainflare_mask_lidar_point{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.{\cf1 \par
+}{\cf1         }################################{\cf1 \par
+}{\cf1         }{\cf9 points_keep_with_noise}{\cf1  }{\cf6 =}{\cf1  }self._lidar_sun_noise{\cf6 (}points_keep,{\cf1  }noisy_point_ratio{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 flare_image_save}{\cf1  }{\cf6 =}{\cf1  }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf6 [}{\cf13 'flare_image_save'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 pts_uvd_noise}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}points_keep_with_noise{\cf6 [}:,:3{\cf6 ]},{\cf1  }{\cf9 proj_mat}{\cf6 =}lidar2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 front_point_noise}{\cf1  }{\cf6 =}{\cf1  }pts_uvd_noise{\cf6 [}pts_uvd_noise{\cf6 [}:,2{\cf6 ]}>0{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 pts_2d_noise}{\cf1  }{\cf6 =}{\cf1  }front_point_noise{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 mainflare_mask_lidar_point_noise}{\cf1  }{\cf6 =}{\cf1  }np.repeat{\cf6 (}mainflare_mask_lidar{\cf6 [}:,:,None{\cf6 ]},{\cf1  }{\cf20 3},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 2}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 255}{\cf1 \par
+}{\cf1             }{\cf9 mainflare_mask_lidar_point_noise}{\cf1  }{\cf6 =}{\cf1  }mainflare_mask_lidar_point_noise.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }coor{\cf1  }{\cf3\b in}{\cf1  }pts_2d_noise:{\cf1 \par
+}{\cf1                 }{\cf9 point_size}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1                 }{\cf9 point_color}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf20 255},0,0{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 thickness}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1                 }cv2.circle{\cf6 (}mainflare_mask_lidar_point_noise,{\cf1  }{\cf6 (}int{\cf6 (}coor{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )},int{\cf6 (}coor{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )},{\cf1  }point_size,{\cf1  }point_color,{\cf1  }thickness{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 mainflare_mask_lidar_point_noise_save}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}mainflare_mask_lidar_point_noise{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.{\cf1 \par
+}{\cf1             }save_image{\cf6 (}{\cf6 [}flare_image_save,{\cf1  }mainflare_mask_lidar_point_save,{\cf1  }mainflare_mask_lidar_point_noise_save{\cf6 ]},{\cf1  }{\cf9 padding}{\cf6 =}{\cf20 0},{\cf1  }{\cf9 pad_value}{\cf6 =}{\cf20 255}.,{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }put{\cf1  }back{\cf1  }to{\cf1  }results{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }points_keep_with_noise{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }_lidar_sun_noise{\cf6 (}self,{\cf1  }pointcloud,{\cf1  }noisy_point_ratio{\cf6 )}:{\cf1 \par
+}{\cf1         }N,{\cf1  }{\cf9 C}{\cf1  }{\cf6 =}{\cf1  }pointcloud.shape{\cf1 \par
+}{\cf1         }#{\cf1  }x{\cf1  }y{\cf1  }z{\cf1  }i{\cf1 \par
+}{\cf1         }{\cf9 xyz_channel}{\cf1  }{\cf6 =}{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1         }{\cf9 noisy_point_num}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}N{\cf1  }*{\cf1  }noisy_point_ratio{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 index}{\cf1  }{\cf6 =}{\cf1  }np.random.choice{\cf6 (}N,{\cf1  }noisy_point_num,{\cf1  }{\cf9 replace}{\cf6 =}False{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1         }pointcloud{\cf6 [}index,{\cf1  }:xyz_channel{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }torch.randn{\cf6 (}noisy_point_num,{\cf1  }xyz_channel{\cf6 )}{\cf1  }*{\cf1  }{\cf20 3}.0{\cf1  }{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }pointcloud{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddSunMono{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }print{\cf6 (}self.__class__.__name__,{\cf1  }{\cf13 ': please set numpy seed !'}{\cf6 )}{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 severity}{\cf1  }{\cf6 =}{\cf1  }self.severity{\cf1 \par
+}{\cf1         }{\cf9 temp_dict_trans_information}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }self.sun_sim_img{\cf6 (}image,{\cf1  }severity,{\cf1  }watch_img,{\cf1  }file_path,{\cf1  }temp_dict_trans_information{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }sun_sim_img{\cf6 (}self,{\cf1  }image,{\cf1  }severity,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''},{\cf1  }{\cf9 temp_dict_trans_information}{\cf6 =}{\cf6 \{}{\cf6 \}}{\cf6 )}:{\cf1 \par
+}{\cf1         }#{\cf1  }get{\cf1  }data{\cf1 \par
+}{\cf1         }#{\cf1  }image{\cf1  }must{\cf1  }be{\cf1  }img_rgb_255_np_uint8{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }corruption{\cf1  }severity-related{\cf1  }parameters{\cf1 \par
+}{\cf1         }{\cf9 sun_radius}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 30},{\cf1  }{\cf20 40},{\cf1  }{\cf20 50},{\cf1  }{\cf20 60},{\cf1  }{\cf20 70}{\cf6 ]}{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }#{\cf1  }corruption{\cf1  }severity-independent{\cf1  }parameters{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 no_of_flare_circles}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1         }{\cf9 src_color}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf20 255},255,255{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img_height}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 sun_u_range}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.25,{\cf1  }{\cf20 0}.75{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 sun_v_range}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.30,{\cf1  }{\cf20 0}.45{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 sun_u}{\cf1  }{\cf6 =}{\cf1  }np.random.uniform{\cf6 (}*sun_u_range{\cf6 )}*img_width{\cf1 \par
+}{\cf1         }{\cf9 sun_v}{\cf1  }{\cf6 =}{\cf1  }np.random.uniform{\cf6 (}*sun_v_range{\cf6 )}*img_height{\cf1 \par
+}{\cf1         }{\cf9 sun_uv}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}sun_u,{\cf1  }sun_v{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 img_center_coor}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}image.shape{\cf6 [}{\cf20 1}{\cf6 ]}/2,{\cf1  }image.shape{\cf6 [}{\cf20 0}{\cf6 ]}/2{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 sun_uv_to_center}{\cf1  }{\cf6 =}{\cf1  }img_center_coor{\cf1  }-{\cf1  }sun_uv{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 sun_flare_line_angle}{\cf1  }{\cf6 =}{\cf1  }np.arctan{\cf6 (}sun_uv_to_center{\cf6 [}{\cf20 1}{\cf6 ]}/sun_uv_to_center{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 sun_flare_line_angle_degree}{\cf1  }{\cf6 =}{\cf1  }sun_flare_line_angle/np.pi*180{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 image_uint8_rgb}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }flare_image_rgb,{\cf1  }{\cf9 mainflare_mask}{\cf1  }{\cf6 =}{\cf1  }am.add_sun_flare{\cf6 (}{\cf1 \par
+}{\cf1             }image_uint8_rgb,{\cf1  }{\cf1 \par
+}{\cf1             }{\cf9 flare_center}{\cf6 =}sun_uv,{\cf1  }{\cf1 \par
+}{\cf1             }{\cf9 angle}{\cf6 =}sun_flare_line_angle,{\cf1 \par
+}{\cf1             }{\cf9 no_of_flare_circles}{\cf1  }{\cf6 =}{\cf1  }no_of_flare_circles,{\cf1 \par
+}{\cf1             }{\cf9 src_radius}{\cf6 =}sun_radius,{\cf1 \par
+}{\cf1             }{\cf9 src_color}{\cf6 =}src_color{\cf1 \par
+}{\cf1             }{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 flare_image_rgb_uint8}{\cf1  }{\cf6 =}{\cf1  }flare_image_rgb.copy{\cf6 (}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }#################################################################{\cf1 \par
+}{\cf1         }#{\cf1  }split{\cf1   }image{\cf1   }and{\cf1   }point{\cf1 \par
+}{\cf1         }#################################################################{\cf1 \par
+}{\cf1         }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf6 \}}{\cf1 \par
+}{\cf1         }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf6 [}{\cf13 'mainflare_mask'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mainflare_mask{\cf1 \par
+}{\cf1         }temp_dict_trans_information{\cf6 [}{\cf13 'sun_sim'}{\cf6 ]}{\cf6 [}{\cf13 'sun_uv'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }sun_uv{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 flare_image_save}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}flare_image_rgb{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.{\cf1 \par
+}{\cf1             }save_image{\cf6 (}flare_image_save,{\cf1  }{\cf9 padding}{\cf6 =}{\cf20 0},{\cf1  }{\cf9 pad_value}{\cf6 =}{\cf20 255}.,{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }flare_image_rgb_uint8{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}import{\cf1  }time{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageBBoxOperation{\cf6 (}{\cf6 )}:{\cf1  }{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }lidar2img,{\cf1  }transform_matrix,{\cf1  }{\cf1 \par
+}{\cf1                 }bboxes_centers,{\cf1  }bboxes_corners,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''},{\cf1 \par
+}{\cf1                 }{\cf9 is_nus}{\cf6 =}False,{\cf1 \par
+}{\cf1                 }{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 image_tensor_org}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}image{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/{\cf1  }{\cf20 255}.{\cf1 \par
+}{\cf1         }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }image_tensor_org.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 img_height}{\cf6 =}image_tensor.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf6 =}image_tensor.shape{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 lidar2img}{\cf1  }{\cf6 =}{\cf1  }lidar2img.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }bboxes_corners{\cf1  }{\cf20 3}*8*3{\cf1    }tensor{\cf1  }{\cf1 \par
+}{\cf1         }#{\cf1  }lidar2img{\cf1  }{\cf20 4}*4{\cf1    }np.array{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }{\cf9 canvas}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}img_height,{\cf1  }img_width,3{\cf6 )}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 canvas}{\cf1  }{\cf6 =}{\cf1  }image.copy{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_num}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 affine_mat}{\cf1  }{\cf6 =}{\cf1  }torch.Tensor{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf6 [}{\cf20 1},0,0{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf6 [}{\cf20 0},1,0{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_centers_distance_pow2}{\cf1  }{\cf6 =}{\cf1  }bboxes_centers{\cf6 [}:,:2{\cf6 ]}.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_centers_distance_index_far2near}{\cf1  }{\cf6 =}{\cf1  }bboxes_centers_distance_pow2.sort{\cf6 (}{\cf9 descending}{\cf6 =}True{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_corners}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners{\cf6 [}bboxes_centers_distance_index_far2near{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_centers}{\cf1  }{\cf6 =}{\cf1  }bboxes_centers{\cf6 [}bboxes_centers_distance_index_far2near{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 imge_changed_flag}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }idx_b{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}bboxes_num{\cf6 )}:{\cf1 \par
+}{\cf1             }#{\cf1  }{\cf9 time_last}{\cf1  }{\cf6 =}{\cf1  }time.time{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 corners}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners{\cf6 [}idx_b{\cf6 ]}{\cf1    }#{\cf1  }{\cf20 8}*3{\cf1 \par
+}{\cf1             }{\cf9 bboxes_center}{\cf1  }{\cf6 =}{\cf1  }bboxes_centers{\cf6 [}idx_b{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }continue_flag,{\cf1  }imge_changed_flag,{\cf1  }target_points,{\cf1  }source_points,{\cf1  }{\cf13\b \\\par
+}{\cf1             }right_line_index,{\cf1  }left_line_index,{\cf1  }{\cf9 mid_line_index}{\cf1  }{\cf6 =}{\cf1  }get_control_point{\cf6 (}{\cf1 \par
+}{\cf1                     }corners,{\cf1  }{\cf1 \par
+}{\cf1                     }bboxes_center,{\cf1  }{\cf1 \par
+}{\cf1                     }lidar2img,{\cf1 \par
+}{\cf1                     }transform_matrix,{\cf1 \par
+}{\cf1                     }img_height,{\cf1 \par
+}{\cf1                     }img_width,{\cf1 \par
+}{\cf1                     }imge_changed_flag{\cf1 \par
+}{\cf1                 }{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }continue_flag:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1             }{\cf9 smaller_flag}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }transform_matrix{\cf6 [}{\cf20 0},0{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 1},1{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 2},2{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 0},1{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 0},2{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 1},0{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 1},2{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 2},0{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 2},1{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }transform_matrix{\cf6 [}{\cf20 0},0{\cf6 ]}{\cf1  }<{\cf1  }{\cf20 1}{\cf1  }or{\cf1  }transform_matrix{\cf6 [}{\cf20 1},1{\cf6 ]}{\cf1  }<{\cf1  }{\cf20 1}{\cf1  }or{\cf1  }transform_matrix{\cf6 [}{\cf20 2},2{\cf6 ]}{\cf1  }<{\cf1  }{\cf20 1}:{\cf1 \par
+}{\cf1                     }{\cf9 smaller_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }target_image,{\cf1  }canvas,{\cf1  }{\cf9 imge_changed_flag}{\cf1  }{\cf6 =}{\cf1  }obj_img_transform{\cf6 (}{\cf1 \par
+}{\cf1                 }image_tensor,{\cf1 \par
+}{\cf1                 }imge_changed_flag,{\cf1  }target_points,{\cf1  }source_points,{\cf1  }{\cf1 \par
+}{\cf1                 }right_line_index,{\cf1  }left_line_index,{\cf1  }mid_line_index,{\cf1 \par
+}{\cf1                 }watch_img,{\cf1  }canvas,{\cf1 \par
+}{\cf1                 }smaller_flag{\cf1 \par
+}{\cf1             }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }#{\cf1  }replace{\cf1 \par
+}{\cf1             }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }target_image{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 canvas_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}canvas{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}/255{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }imge_changed_flag:{\cf1 \par
+}{\cf1                 }save_image{\cf6 (}{\cf6 [}canvas_tensor,{\cf1  }target_image{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }save_image{\cf6 (}{\cf6 [}canvas_tensor,{\cf1  }image_tensor{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1         }################{\cf1   }finish{\cf1   }{\cf3\b then}{\cf1  }output{\cf1   }#############{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }imge_changed_flag:{\cf1 \par
+}{\cf1             }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }target_image{\cf1 \par
+}{\cf1             }{\cf9 image_aug_np_rgb_255}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}image_aug*255{\cf6 )}.permute{\cf6 (}{\cf20 1},2,0{\cf6 )}.numpy{\cf6 (}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }image_aug_np_rgb_255{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }#{\cf1  }no{\cf1  }change{\cf1  }{\cf3\b in}{\cf1  }image{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageBBoxOperationMono{\cf6 (}{\cf6 )}:{\cf1  }{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }cam2img,{\cf1  }transform_matrix,{\cf1  }{\cf1 \par
+}{\cf1                 }bboxes_centers,{\cf1  }bboxes_corners,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''},{\cf1 \par
+}{\cf1                 }{\cf9 is_nus}{\cf6 =}False,{\cf1 \par
+}{\cf1                 }{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 image_tensor_org}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}image{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/{\cf1  }{\cf20 255}.{\cf1 \par
+}{\cf1         }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }image_tensor_org.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 img_height}{\cf6 =}image_tensor.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf6 =}image_tensor.shape{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 cam2img}{\cf1  }{\cf6 =}{\cf1  }cam2img.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }bboxes_corners{\cf1  }{\cf20 3}*8*3{\cf1    }tensor{\cf1  }{\cf1 \par
+}{\cf1         }#{\cf1  }cam2img{\cf1  }{\cf20 4}*4{\cf1    }np.array{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }{\cf9 canvas}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}img_height,{\cf1  }img_width,3{\cf6 )}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 canvas}{\cf1  }{\cf6 =}{\cf1  }image.copy{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_num}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 affine_mat}{\cf1  }{\cf6 =}{\cf1  }torch.Tensor{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf6 [}{\cf20 1},0,0{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf6 [}{\cf20 0},1,0{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_centers_distance_pow2}{\cf1  }{\cf6 =}{\cf1  }bboxes_centers{\cf6 [}:,:2{\cf6 ]}.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_centers_distance_index_far2near}{\cf1  }{\cf6 =}{\cf1  }bboxes_centers_distance_pow2.sort{\cf6 (}{\cf9 descending}{\cf6 =}True{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_corners}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners{\cf6 [}bboxes_centers_distance_index_far2near{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_centers}{\cf1  }{\cf6 =}{\cf1  }bboxes_centers{\cf6 [}bboxes_centers_distance_index_far2near{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 imge_changed_flag}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }idx_b{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}bboxes_num{\cf6 )}:{\cf1 \par
+}{\cf1             }#{\cf1  }{\cf9 time_last}{\cf1  }{\cf6 =}{\cf1  }time.time{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1             }{\cf9 corners}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners{\cf6 [}idx_b{\cf6 ]}{\cf1    }#{\cf1  }{\cf20 8}*3{\cf1 \par
+}{\cf1             }{\cf9 bboxes_center}{\cf1  }{\cf6 =}{\cf1  }bboxes_centers{\cf6 [}idx_b{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }continue_flag,{\cf1  }imge_changed_flag,{\cf1  }target_points,{\cf1  }source_points,{\cf1  }{\cf13\b \\\par
+}{\cf1             }right_line_index,{\cf1  }left_line_index,{\cf1  }{\cf9 mid_line_index}{\cf1  }{\cf6 =}{\cf1  }get_control_point_mono{\cf6 (}{\cf1 \par
+}{\cf1                     }corners,{\cf1  }{\cf1 \par
+}{\cf1                     }bboxes_center,{\cf1  }{\cf1 \par
+}{\cf1                     }cam2img,{\cf1 \par
+}{\cf1                     }transform_matrix,{\cf1 \par
+}{\cf1                     }img_height,{\cf1 \par
+}{\cf1                     }img_width,{\cf1 \par
+}{\cf1                     }imge_changed_flag{\cf1 \par
+}{\cf1                 }{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }continue_flag:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }#{\cf1  }${\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf6 =}{\cf1 \par
+}{\cf1             }{\cf9 smaller_flag}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }transform_matrix{\cf6 [}{\cf20 0},0{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 1},1{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 2},2{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 0},1{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 0},2{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 1},0{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 1},2{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 2},0{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }{\cf13\b \\\par
+}{\cf1                 }and{\cf1  }transform_matrix{\cf6 [}{\cf20 2},1{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }transform_matrix{\cf6 [}{\cf20 0},0{\cf6 ]}{\cf1  }<{\cf1  }{\cf20 1}{\cf1  }or{\cf1  }transform_matrix{\cf6 [}{\cf20 1},1{\cf6 ]}{\cf1  }<{\cf1  }{\cf20 1}{\cf1  }or{\cf1  }transform_matrix{\cf6 [}{\cf20 2},2{\cf6 ]}{\cf1  }<{\cf1  }{\cf20 1}:{\cf1 \par
+}{\cf1                     }{\cf9 smaller_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1             }target_image,{\cf1  }canvas,{\cf1  }{\cf9 imge_changed_flag}{\cf1  }{\cf6 =}{\cf1  }obj_img_transform{\cf6 (}{\cf1 \par
+}{\cf1                 }image_tensor,{\cf1 \par
+}{\cf1                 }imge_changed_flag,{\cf1  }target_points,{\cf1  }source_points,{\cf1  }{\cf1 \par
+}{\cf1                 }right_line_index,{\cf1  }left_line_index,{\cf1  }mid_line_index,{\cf1 \par
+}{\cf1                 }watch_img,{\cf1  }canvas,{\cf1 \par
+}{\cf1                 }smaller_flag{\cf1 \par
+}{\cf1             }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }#{\cf1  }replace{\cf1 \par
+}{\cf1             }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }target_image{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 canvas_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}canvas{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}/255{\cf1 \par
+}{\cf1             }#{\cf1  }save_image{\cf6 (}{\cf6 [}canvas_tensor,{\cf1  }image_tensor_org,{\cf1  }target_image,{\cf1  }target_image2{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1             }#{\cf1  }save_image{\cf6 (}{\cf6 [}canvas_tensor,{\cf1  }image_tensor_org,{\cf1  }target_image{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }imge_changed_flag:{\cf1 \par
+}{\cf1                 }save_image{\cf6 (}{\cf6 [}canvas_tensor,{\cf1  }target_image{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }save_image{\cf6 (}{\cf6 [}canvas_tensor,{\cf1  }image_tensor{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1             }#{\cf1  }print{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1 \par
+}{\cf1         }################{\cf1   }finish{\cf1   }{\cf3\b then}{\cf1  }output{\cf1   }#############{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }imge_changed_flag:{\cf1 \par
+}{\cf1             }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }target_image{\cf1 \par
+}{\cf1             }{\cf9 image_aug_np_rgb_255}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}image_aug*255{\cf6 )}.permute{\cf6 (}{\cf20 1},2,0{\cf6 )}.numpy{\cf6 (}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }image_aug_np_rgb_255{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }#{\cf1  }no{\cf1  }change{\cf1  }{\cf3\b in}{\cf1  }image{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1      }{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_control_point{\cf6 (}{\cf1 \par
+}{\cf1     }corners,{\cf1  }{\cf1 \par
+}{\cf1     }bboxes_center,{\cf1  }{\cf1 \par
+}{\cf1     }lidar2img,{\cf1 \par
+}{\cf1     }transform_matrix,{\cf1 \par
+}{\cf1     }img_height,{\cf1 \par
+}{\cf1     }img_width,{\cf1 \par
+}{\cf1     }imge_changed_flag{\cf6 )}:{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 continue_flag}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 target_points}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf9 source_points}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf9 mid_line_index}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }ixxxx{\cf1  }{\cf3\b in}{\cf1  }{\cf6 [}{\cf20 0}{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf9 clockwise_order_corners}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}{\cf6 [}{\cf20 0},1,2,3,6,7,4,5{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 clockwise_order_corners_xy}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners{\cf6 [}{\cf6 [}{\cf20 0},2,4,6{\cf6 ]},:2{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 clockwise_order_corners_theta}{\cf1  }{\cf6 =}{\cf1  }safe_arctan_0to2pi{\cf6 (}clockwise_order_corners_xy{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }adjust_step{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 10}{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }clockwise_order_corners_theta.max{\cf6 (}{\cf6 )}{\cf1  }-{\cf1  }clockwise_order_corners_theta.min{\cf6 (}{\cf6 )}{\cf1  }>{\cf1  }np.pi:{\cf1 \par
+}{\cf1                 }clockwise_order_corners_theta{\cf6 [}clockwise_order_corners_theta.argmin{\cf6 (}{\cf6 )}{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }{\cf20 2}{\cf1  }*{\cf1  }np.pi{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf3\b break}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }adjust_step{\cf1  }>{\cf1  }{\cf20 3}:{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf13 'error bbox may cover xyz-axis origin'}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 continue_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }{\cf3\b continue}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }{\cf9 max_theta_idx}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta.argmax{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 min_theta_idx}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta.argmin{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 idx_minus}{\cf1  }{\cf6 =}{\cf1  }max_theta_idx{\cf1  }-{\cf1  }min_theta_idx{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }idx_minus.abs{\cf6 (}{\cf6 )}{\cf6 =}{\cf6 =}{\cf20 1}{\cf1  }or{\cf1  }idx_minus.abs{\cf6 (}{\cf6 )}{\cf6 =}{\cf6 =}{\cf20 3}:{\cf1 \par
+}{\cf1             }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }False:{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_d}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_xy.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_dmax_index}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_d.argmax{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_xy_near_mask}{\cf1  }{\cf6 =}{\cf1  }torch.ones_like{\cf6 (}clockwise_order_corners_d{\cf6 )}.bool{\cf6 (}{\cf6 )}.fill_{\cf6 (}True{\cf6 )}{\cf1 \par
+}{\cf1             }clockwise_order_corners_xy_near_mask{\cf6 [}clockwise_order_corners_dmax_index{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_theta_near}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta{\cf6 [}clockwise_order_corners_xy_near_mask{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_theta_near_sort}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta_near.sort{\cf6 (}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 theta_part_length}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta_near_sort{\cf6 [}{\cf20 1}:{\cf6 ]}{\cf1  }-{\cf1  }clockwise_order_corners_theta_near_sort{\cf6 [}:-1{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }theta_part_length.min{\cf6 (}{\cf6 )}{\cf1  }/{\cf1  }theta_part_length.sum{\cf6 (}{\cf6 )}{\cf1  }<{\cf1  }{\cf20 0}.2:{\cf1 \par
+}{\cf1                 }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1         }#{\cf1  }compute{\cf1  }control{\cf1  }points{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }only_one_face_saw:{\cf1 \par
+}{\cf1             }{\cf9 corners_distence_xy_pow2}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}:,:2{\cf6 ]}.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_indices}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}-corners_distence_xy_pow2{\cf6 )}.topk{\cf6 (}{\cf9 k}{\cf6 =}{\cf20 4}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_xyz}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}nearest_4_corners_indices{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}nearest_4_corners_xyz,{\cf1  }{\cf9 proj_mat}{\cf6 =}lidar2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_uv}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 source_points}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_uv{\cf1  }#{\cf1  }{\cf20 4}*2{\cf1 \par
+}{\cf1             }{\cf9 u_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,0{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,0{\cf6 ]}<img_width{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 v_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,1{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,1{\cf6 ]}<img_height{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 d_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,2{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 uvd_valid}{\cf1  }{\cf6 =}{\cf1  }u_valid.all{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }v_valid.all{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }d_valid.all{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }not{\cf1  }uvd_valid:{\cf1  }#{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 continue_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 imge_changed_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_xyz_temp}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_xyz{\cf1  }-{\cf1  }bboxes_center{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_xyz_temp}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_xyz_temp.mm{\cf6 (}transform_matrix{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_4_corners_xyz}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_xyz_temp{\cf1  }+{\cf1  }bboxes_center{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 target_4_corners_uv}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}target_4_corners_xyz,{\cf1  }{\cf9 proj_mat}{\cf6 =}lidar2img,{\cf1  }{\cf9 with_depth}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_points}{\cf1  }{\cf6 =}{\cf1  }target_4_corners_uv{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1             }{\cf9 corners_distence_xy_pow2}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}:,:2{\cf6 ]}.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_indices}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}-corners_distence_xy_pow2{\cf6 )}.topk{\cf6 (}{\cf9 k}{\cf6 =}{\cf20 6}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_xyz}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}nearest_6_corners_indices{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}nearest_6_corners_xyz,{\cf1  }{\cf9 proj_mat}{\cf6 =}lidar2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_uv}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 source_points}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_uv{\cf1  }#{\cf1  }{\cf20 6}*2{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 u_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,0{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,0{\cf6 ]}<img_width{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 v_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,1{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,1{\cf6 ]}<img_height{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 d_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,2{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 uvd_valid}{\cf1  }{\cf6 =}{\cf1  }u_valid.all{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }v_valid.all{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }d_valid.all{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }not{\cf1  }uvd_valid:{\cf1 \par
+}{\cf1                 }{\cf9 continue_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 imge_changed_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_xyz_temp}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_xyz{\cf1  }-{\cf1  }bboxes_center{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_xyz_temp}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_xyz_temp.mm{\cf6 (}transform_matrix{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_6_corners_xyz}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_xyz_temp{\cf1  }+{\cf1  }bboxes_center{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 target_6_corners_uv}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}target_6_corners_xyz,{\cf1  }{\cf9 proj_mat}{\cf6 =}lidar2img,{\cf1  }{\cf9 with_depth}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_points}{\cf1  }{\cf6 =}{\cf1  }target_6_corners_uv{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }on{\cf1  }box{\cf1  }points{\cf1 \par
+}{\cf1         }#{\cf1  }sort{\cf1  }points{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }len{\cf6 (}source_points{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 4}:{\cf1 \par
+}{\cf1             }{\cf9 points_u_sort_index}{\cf1  }{\cf6 =}{\cf1  }torch.sort{\cf6 (}source_points{\cf6 [}:,0{\cf6 ]}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }points_u_sort_index{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}left_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1   }points_u_sort_index{\cf6 [}{\cf20 2}:4{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}right_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 points_u_sort_index}{\cf1  }{\cf6 =}{\cf1  }torch.sort{\cf6 (}source_points{\cf6 [}:,0{\cf6 ]}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }points_u_sort_index{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}left_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1             }{\cf9 mid_line_index}{\cf1  }{\cf6 =}{\cf1  }points_u_sort_index{\cf6 [}{\cf20 2}:4{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 mid_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}mid_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1   }points_u_sort_index{\cf6 [}{\cf20 4}:6{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}right_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }continue_flag,{\cf1  }imge_changed_flag,{\cf1  }target_points,{\cf1  }source_points,{\cf1  }right_line_index,{\cf1  }left_line_index,{\cf1  }mid_line_index{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_control_point_mono{\cf6 (}{\cf1 \par
+}{\cf1     }corners,{\cf1  }{\cf1 \par
+}{\cf1     }bboxes_center,{\cf1  }{\cf1 \par
+}{\cf1     }cam2img,{\cf1 \par
+}{\cf1     }transform_matrix,{\cf1 \par
+}{\cf1     }img_height,{\cf1 \par
+}{\cf1     }img_width,{\cf1 \par
+}{\cf1     }imge_changed_flag{\cf6 )}:{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 continue_flag}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 target_points}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf9 source_points}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf9 mid_line_index}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }ixxxx{\cf1  }{\cf3\b in}{\cf1  }{\cf6 [}{\cf20 0}{\cf6 ]}:{\cf1 \par
+}{\cf1         }#{\cf1  }{\cf9 clockwise_order_corners}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}{\cf6 [}{\cf20 0},1,2,3,6,7,4,5{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 clockwise_order_corners}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}{\cf6 [}{\cf20 0},3,1,2,5,6,4,7{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 clockwise_order_corners_xz}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners{\cf6 [}{\cf6 [}{\cf20 0},2,4,6{\cf6 ]}{\cf6 ]}{\cf6 [}:,{\cf6 [}{\cf20 0},2{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 clockwise_order_corners_theta}{\cf1  }{\cf6 =}{\cf1  }safe_arctan_0to2pi{\cf6 (}clockwise_order_corners_xz{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }adjust_step{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 10}{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }clockwise_order_corners_theta.max{\cf6 (}{\cf6 )}{\cf1  }-{\cf1  }clockwise_order_corners_theta.min{\cf6 (}{\cf6 )}{\cf1  }>{\cf1  }np.pi:{\cf1 \par
+}{\cf1                 }clockwise_order_corners_theta{\cf6 [}clockwise_order_corners_theta.argmin{\cf6 (}{\cf6 )}{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }{\cf20 2}{\cf1  }*{\cf1  }np.pi{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf3\b break}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }adjust_step{\cf1  }>{\cf1  }{\cf20 3}:{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf13 'error bbox may cover xyz-axis origin'}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 continue_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }{\cf3\b continue}{\cf1 \par
+}{\cf1         }{\cf9 max_theta_idx}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta.argmax{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 min_theta_idx}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta.argmin{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 idx_minus}{\cf1  }{\cf6 =}{\cf1  }max_theta_idx{\cf1  }-{\cf1  }min_theta_idx{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }idx_minus.abs{\cf6 (}{\cf6 )}{\cf6 =}{\cf6 =}{\cf20 1}{\cf1  }or{\cf1  }idx_minus.abs{\cf6 (}{\cf6 )}{\cf6 =}{\cf6 =}{\cf20 3}:{\cf1 \par
+}{\cf1             }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }False:{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_d}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_xz.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_dmax_index}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_d.argmax{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_xz_near_mask}{\cf1  }{\cf6 =}{\cf1  }torch.ones_like{\cf6 (}clockwise_order_corners_d{\cf6 )}.bool{\cf6 (}{\cf6 )}.fill_{\cf6 (}True{\cf6 )}{\cf1 \par
+}{\cf1             }clockwise_order_corners_xz_near_mask{\cf6 [}clockwise_order_corners_dmax_index{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_theta_near}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta{\cf6 [}clockwise_order_corners_xz_near_mask{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 clockwise_order_corners_theta_near_sort}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta_near.sort{\cf6 (}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 theta_part_length}{\cf1  }{\cf6 =}{\cf1  }clockwise_order_corners_theta_near_sort{\cf6 [}{\cf20 1}:{\cf6 ]}{\cf1  }-{\cf1  }clockwise_order_corners_theta_near_sort{\cf6 [}:-1{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }theta_part_length.min{\cf6 (}{\cf6 )}{\cf1  }/{\cf1  }theta_part_length.sum{\cf6 (}{\cf6 )}{\cf1  }<{\cf1  }{\cf20 0}.2:{\cf1 \par
+}{\cf1                 }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }False:{\cf1 \par
+}{\cf1             }{\cf9 corners_distence_xz_pow2}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}:,{\cf6 [}{\cf20 0},2{\cf6 ]}{\cf6 ]}.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_indices}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}-corners_distence_xz_pow2{\cf6 )}.topk{\cf6 (}{\cf9 k}{\cf6 =}{\cf20 6}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_mask}{\cf1  }{\cf6 =}{\cf1  }torch.zeros_like{\cf6 (}corners_distence_xz_pow2{\cf6 )}.bool{\cf6 (}{\cf6 )}.fill_{\cf6 (}False{\cf6 )}{\cf1 \par
+}{\cf1             }nearest_6_corners_mask{\cf6 [}nearest_6_corners_indices{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 corners_transformed}{\cf1  }{\cf6 =}{\cf1  }corners{\cf1  }-{\cf1  }bboxes_center{\cf1 \par
+}{\cf1             }{\cf9 corners_transformed}{\cf1  }{\cf6 =}{\cf1  }corners_transformed.mm{\cf6 (}transform_matrix{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 corners_transformed}{\cf1  }{\cf6 =}{\cf1  }corners_transformed{\cf1  }+{\cf1  }bboxes_center{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 corners_transformed_distence_xz_pow2}{\cf1  }{\cf6 =}{\cf1  }corners_transformed{\cf6 [}:,{\cf6 [}{\cf20 0},2{\cf6 ]}{\cf6 ]}.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_transformed_indices}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}-corners_transformed_distence_xz_pow2{\cf6 )}.topk{\cf6 (}{\cf9 k}{\cf6 =}{\cf20 6}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_transformed_mask}{\cf1  }{\cf6 =}{\cf1  }torch.zeros_like{\cf6 (}corners_transformed_distence_xz_pow2{\cf6 )}.bool{\cf6 (}{\cf6 )}.fill_{\cf6 (}False{\cf6 )}{\cf1 \par
+}{\cf1             }nearest_6_corners_transformed_mask{\cf6 [}nearest_6_corners_transformed_indices{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}{\cf9 nearest_6_corners_transformed_mask}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }nearest_6_corners_mask{\cf6 )}.all{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1                 }pass{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 only_one_face_saw}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }compute{\cf1  }control{\cf1  }points{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }only_one_face_saw:{\cf1 \par
+}{\cf1             }{\cf9 corners_distence_xz_pow2}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}:,{\cf6 [}{\cf20 0},2{\cf6 ]}{\cf6 ]}.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_indices}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}-corners_distence_xz_pow2{\cf6 )}.topk{\cf6 (}{\cf9 k}{\cf6 =}{\cf20 4}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_xyz}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}nearest_4_corners_indices{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}nearest_4_corners_xyz,{\cf1  }{\cf9 proj_mat}{\cf6 =}cam2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_uv}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 source_points}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_uv{\cf1  }#{\cf1  }{\cf20 4}*2{\cf1 \par
+}{\cf1             }{\cf9 u_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,0{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,0{\cf6 ]}<img_width{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 v_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,1{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,1{\cf6 ]}<img_height{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 d_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_4_corners_uvd{\cf6 [}:,2{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 uvd_valid}{\cf1  }{\cf6 =}{\cf1  }u_valid.all{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }v_valid.all{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }d_valid.all{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }not{\cf1  }uvd_valid:{\cf1  }#{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 continue_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 imge_changed_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_xyz_temp}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_xyz{\cf1  }-{\cf1  }bboxes_center{\cf1 \par
+}{\cf1             }{\cf9 nearest_4_corners_xyz_temp}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_xyz_temp.mm{\cf6 (}transform_matrix{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_4_corners_xyz}{\cf1  }{\cf6 =}{\cf1  }nearest_4_corners_xyz_temp{\cf1  }+{\cf1  }bboxes_center{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 target_4_corners_uv}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}target_4_corners_xyz,{\cf1  }{\cf9 proj_mat}{\cf6 =}cam2img,{\cf1  }{\cf9 with_depth}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_points}{\cf1  }{\cf6 =}{\cf1  }target_4_corners_uv{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1             }{\cf9 corners_distence_xz_pow2}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}:,{\cf6 [}{\cf20 0},2{\cf6 ]}{\cf6 ]}.pow{\cf6 (}{\cf20 2}{\cf6 )}.sum{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_indices}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}-corners_distence_xz_pow2{\cf6 )}.topk{\cf6 (}{\cf9 k}{\cf6 =}{\cf20 6}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_xyz}{\cf1  }{\cf6 =}{\cf1  }corners{\cf6 [}nearest_6_corners_indices{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}nearest_6_corners_xyz,{\cf1  }{\cf9 proj_mat}{\cf6 =}cam2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_uv}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 source_points}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_uv{\cf1  }#{\cf1  }{\cf20 6}*2{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 u_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,0{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,0{\cf6 ]}<img_width{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 v_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,1{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,1{\cf6 ]}<img_height{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 d_valid}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}nearest_6_corners_uvd{\cf6 [}:,2{\cf6 ]}>{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 uvd_valid}{\cf1  }{\cf6 =}{\cf1  }u_valid.all{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }v_valid.all{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }d_valid.all{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }not{\cf1  }uvd_valid:{\cf1 \par
+}{\cf1                 }{\cf9 continue_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 imge_changed_flag}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_xyz_temp}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_xyz{\cf1  }-{\cf1  }bboxes_center{\cf1 \par
+}{\cf1             }{\cf9 nearest_6_corners_xyz_temp}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_xyz_temp.mm{\cf6 (}transform_matrix{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_6_corners_xyz}{\cf1  }{\cf6 =}{\cf1  }nearest_6_corners_xyz_temp{\cf1  }+{\cf1  }bboxes_center{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 target_6_corners_uv}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}target_6_corners_xyz,{\cf1  }{\cf9 proj_mat}{\cf6 =}cam2img,{\cf1  }{\cf9 with_depth}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_points}{\cf1  }{\cf6 =}{\cf1  }target_6_corners_uv{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }on{\cf1  }box{\cf1  }points{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }sort{\cf1  }points{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }len{\cf6 (}source_points{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 4}:{\cf1 \par
+}{\cf1             }{\cf9 points_u_sort_index}{\cf1  }{\cf6 =}{\cf1  }torch.sort{\cf6 (}source_points{\cf6 [}:,0{\cf6 ]}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }points_u_sort_index{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}left_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1   }points_u_sort_index{\cf6 [}{\cf20 2}:4{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}right_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 points_u_sort_index}{\cf1  }{\cf6 =}{\cf1  }torch.sort{\cf6 (}source_points{\cf6 [}:,0{\cf6 ]}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }points_u_sort_index{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 left_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}left_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1             }{\cf9 mid_line_index}{\cf1  }{\cf6 =}{\cf1  }points_u_sort_index{\cf6 [}{\cf20 2}:4{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 mid_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}mid_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1   }points_u_sort_index{\cf6 [}{\cf20 4}:6{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 right_line_index}{\cf1  }{\cf6 =}{\cf1  }check_order_v{\cf6 (}right_line_index,{\cf1  }source_points{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }continue_flag,{\cf1  }imge_changed_flag,{\cf1  }target_points,{\cf1  }source_points,{\cf1  }right_line_index,{\cf1  }left_line_index,{\cf1  }mid_line_index{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }obj_img_transform{\cf6 (}{\cf1 \par
+}{\cf1         }image_tensor,{\cf1 \par
+}{\cf1         }imge_changed_flag,{\cf1  }target_points,{\cf1  }source_points,{\cf1  }{\cf1 \par
+}{\cf1         }right_line_index,{\cf1  }left_line_index,{\cf1  }mid_line_index,{\cf1 \par
+}{\cf1         }watch_img,{\cf1  }canvas,{\cf1 \par
+}{\cf1         }smaller_flag{\cf1 \par
+}{\cf1     }{\cf6 )}:{\cf1 \par
+}{\cf1     }#{\cf1  }whether{\cf1  }to{\cf1  }add{\cf1  }more{\cf1  }control{\cf1  }points{\cf1 \par
+}{\cf1     }#{\cf1  }{\cf20 2}{\cf1  }:{\cf1  }no{\cf1  }add{\cf1 \par
+}{\cf1     }#{\cf1  }{\cf20 3},4...{\cf1  }:{\cf1  }add{\cf1 \par
+}{\cf1     }{\cf9 total_num_inline}{\cf1  }{\cf6 =}{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }len{\cf6 (}source_points{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 4}:{\cf1 \par
+}{\cf1         }{\cf9 source_points_onbox_leftright}{\cf1  }{\cf6 =}{\cf1  }get_grid_points{\cf6 (}{\cf1 \par
+}{\cf1             }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1                 }source_points{\cf6 [}left_line_index{\cf6 ]},{\cf1 \par
+}{\cf1                 }source_points{\cf6 [}right_line_index{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1             }total_num_inline{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 target_points_onbox_leftright}{\cf1  }{\cf6 =}{\cf1  }get_grid_points{\cf6 (}{\cf1 \par
+}{\cf1             }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1                 }target_points{\cf6 [}left_line_index{\cf6 ]},{\cf1 \par
+}{\cf1                 }target_points{\cf6 [}right_line_index{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1             }total_num_inline{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }{\cf9 source_points_onbox_leftmid}{\cf1  }{\cf6 =}{\cf1  }get_grid_points{\cf6 (}{\cf1 \par
+}{\cf1             }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1                 }source_points{\cf6 [}left_line_index{\cf6 ]},{\cf1 \par
+}{\cf1                 }source_points{\cf6 [}mid_line_index{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1             }total_num_inline{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 source_points_onbox_midright}{\cf1  }{\cf6 =}{\cf1  }get_grid_points{\cf6 (}{\cf1 \par
+}{\cf1             }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1                 }source_points{\cf6 [}mid_line_index{\cf6 ]},{\cf1 \par
+}{\cf1                 }source_points{\cf6 [}right_line_index{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1             }total_num_inline{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 target_points_onbox_leftmid}{\cf1  }{\cf6 =}{\cf1  }get_grid_points{\cf6 (}{\cf1 \par
+}{\cf1             }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1                 }target_points{\cf6 [}left_line_index{\cf6 ]},{\cf1 \par
+}{\cf1                 }target_points{\cf6 [}mid_line_index{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1             }total_num_inline{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 target_points_onbox_midright}{\cf1  }{\cf6 =}{\cf1  }get_grid_points{\cf6 (}{\cf1 \par
+}{\cf1             }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1                 }target_points{\cf6 [}mid_line_index{\cf6 ]},{\cf1 \par
+}{\cf1                 }target_points{\cf6 [}right_line_index{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1             }total_num_inline{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }{\cf3\b do}{\cf1  }seperate{\cf1  }transform!{\cf1 \par
+}{\cf1     }#{\cf1  }left--mid{\cf1    }mid--right{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }len{\cf6 (}source_points{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 4}:{\cf1 \par
+}{\cf1         }{\cf9 source_points_leftright}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}source_points_onbox_leftright,{\cf1  }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 target_points_leftright}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}target_points_onbox_leftright,{\cf1  }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }{\cf9 source_points_leftmid}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}source_points_onbox_leftmid,{\cf1  }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 source_points_midright}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}source_points_onbox_midright,{\cf1  }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 target_points_leftmid}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}target_points_onbox_leftmid,{\cf1  }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 target_points_midright}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}target_points_onbox_midright,{\cf1  }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 0},len{\cf6 (}source_points{\cf6 )},2{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 u1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}source_points{\cf6 [}i,0{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 v1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}source_points{\cf6 [}i,1{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 u2}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}source_points{\cf6 [}i+1,0{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 v2}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}source_points{\cf6 [}i+1,1{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }cv2.line{\cf6 (}canvas,{\cf6 (}u1,v1{\cf6 )},{\cf6 (}u2,v2{\cf6 )},color{\cf6 =}{\cf6 (}{\cf20 0},255,0{\cf6 )},thickness{\cf6 =}{\cf20 2}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 0},len{\cf6 (}target_points{\cf6 )},2{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 u1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}target_points{\cf6 [}i,0{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 v1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}target_points{\cf6 [}i,1{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 u2}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}target_points{\cf6 [}i+1,0{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 v2}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}target_points{\cf6 [}i+1,1{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }cv2.line{\cf6 (}canvas,{\cf6 (}u1,v1{\cf6 )},{\cf6 (}u2,v2{\cf6 )},color{\cf6 =}{\cf6 (}{\cf20 255},0,0{\cf6 )},thickness{\cf6 =}{\cf20 2}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }len{\cf6 (}source_points{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 4}:{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}source_points_leftright{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 u1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}source_points_leftright{\cf6 [}i,0{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 v1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}source_points_leftright{\cf6 [}i,1{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 u2}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}target_points_leftright{\cf6 [}i,0{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 v2}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}target_points_leftright{\cf6 [}i,1{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }cv2.circle{\cf6 (}canvas,{\cf1  }{\cf6 (}u1,v1{\cf6 )},{\cf1  }{\cf20 2},{\cf1  }{\cf9 color}{\cf6 =}{\cf6 (}{\cf20 100},255,0{\cf6 )},{\cf1  }{\cf9 thickness}{\cf6 =}-1{\cf6 )}{\cf1 \par
+}{\cf1                 }cv2.circle{\cf6 (}canvas,{\cf1  }{\cf6 (}u2,v2{\cf6 )},{\cf1  }{\cf20 2},{\cf1  }{\cf9 color}{\cf6 =}{\cf6 (}{\cf20 0},50,200{\cf6 )},{\cf1  }{\cf9 thickness}{\cf6 =}-1{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}source_points_leftmid{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 u1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}source_points_leftmid{\cf6 [}i,0{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 v1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}source_points_leftmid{\cf6 [}i,1{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 u2}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}target_points_leftmid{\cf6 [}i,0{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 v2}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}target_points_leftmid{\cf6 [}i,1{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }cv2.circle{\cf6 (}canvas,{\cf1  }{\cf6 (}u1,v1{\cf6 )},{\cf1  }{\cf20 2},{\cf1  }{\cf9 color}{\cf6 =}{\cf6 (}{\cf20 100},255,0{\cf6 )},{\cf1  }{\cf9 thickness}{\cf6 =}-1{\cf6 )}{\cf1 \par
+}{\cf1                 }cv2.circle{\cf6 (}canvas,{\cf1  }{\cf6 (}u2,v2{\cf6 )},{\cf1  }{\cf20 2},{\cf1  }{\cf9 color}{\cf6 =}{\cf6 (}{\cf20 0},50,200{\cf6 )},{\cf1  }{\cf9 thickness}{\cf6 =}-1{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }len{\cf6 (}source_points{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 4}:{\cf1 \par
+}{\cf1         }u1_leftright,{\cf1  }{\cf9 v1_leftright}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }target_points_onbox_leftright,{\cf1  }source_points_onbox_leftright{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}.min{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }u2_leftright,{\cf1  }{\cf9 v2_leftright}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }target_points_onbox_leftright,{\cf1  }source_points_onbox_leftright{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}.max{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }!{\cf6 =}-------------------{\cf1   }input{\cf1  }------------------------------------{\cf1 \par
+}{\cf1         }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }patch_transform{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 u1}{\cf6 =}u1_leftright,{\cf1 \par
+}{\cf1             }{\cf9 u2}{\cf6 =}u2_leftright,{\cf1 \par
+}{\cf1             }{\cf9 v1}{\cf6 =}v1_leftright,{\cf1 \par
+}{\cf1             }{\cf9 v2}{\cf6 =}v2_leftright,{\cf1 \par
+}{\cf1             }{\cf9 target_points}{\cf6 =}target_points_leftright,{\cf1 \par
+}{\cf1             }{\cf9 source_points}{\cf6 =}source_points_leftright,{\cf1 \par
+}{\cf1             }{\cf9 image_tensor}{\cf6 =}image_tensor,{\cf1 \par
+}{\cf1             }{\cf9 smaller_flag}{\cf6 =}smaller_flag{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }u1_leftmid,{\cf1  }{\cf9 v1_leftmid}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }target_points_onbox_leftmid,{\cf1  }source_points_onbox_leftmid{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}.min{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }u2_leftmid,{\cf1  }{\cf9 _}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }target_points_onbox_leftmid,{\cf1  }{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}.max{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }_,{\cf1  }{\cf9 v2_leftmid}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }target_points_onbox_leftmid,{\cf1  }source_points_onbox_leftmid{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}.max{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }!{\cf6 =}-------------------{\cf1   }input{\cf1  }------------------------------------{\cf1 \par
+}{\cf1         }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }patch_transform{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 u1}{\cf6 =}u1_leftmid,{\cf1 \par
+}{\cf1             }{\cf9 u2}{\cf6 =}u2_leftmid,{\cf1 \par
+}{\cf1             }{\cf9 v1}{\cf6 =}v1_leftmid,{\cf1 \par
+}{\cf1             }{\cf9 v2}{\cf6 =}v2_leftmid,{\cf1 \par
+}{\cf1             }{\cf9 target_points}{\cf6 =}target_points_leftmid,{\cf1 \par
+}{\cf1             }{\cf9 source_points}{\cf6 =}source_points_leftmid,{\cf1 \par
+}{\cf1             }{\cf9 image_tensor}{\cf6 =}image_tensor,{\cf1 \par
+}{\cf1             }{\cf9 smaller_flag}{\cf6 =}smaller_flag{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }_,{\cf1  }{\cf9 v1_midright}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }target_points_onbox_midright,{\cf1  }source_points_onbox_midright{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}.min{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 u1_midright}{\cf1  }{\cf6 =}{\cf1  }u2_leftmid{\cf1 \par
+}{\cf1 \par
+}{\cf1         }u2_midright,{\cf1  }{\cf9 v2_midright}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }target_points_onbox_midright,{\cf1  }source_points_onbox_midright{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}.max{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}.long{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }patch_transform{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 u1}{\cf6 =}u1_midright,{\cf1    }#{\cf1  }{\cf9 u1_midright}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }u2_midright{\cf1 \par
+}{\cf1             }{\cf9 u2}{\cf6 =}u2_midright,{\cf1 \par
+}{\cf1             }{\cf9 v1}{\cf6 =}v1_midright,{\cf1 \par
+}{\cf1             }{\cf9 v2}{\cf6 =}v2_midright,{\cf1 \par
+}{\cf1             }{\cf9 target_points}{\cf6 =}target_points_midright,{\cf1 \par
+}{\cf1             }{\cf9 source_points}{\cf6 =}source_points_midright,{\cf1 \par
+}{\cf1             }{\cf9 image_tensor}{\cf6 =}image_tensor,{\cf1 \par
+}{\cf1             }{\cf9 smaller_flag}{\cf6 =}smaller_flag{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }replace{\cf1 \par
+}{\cf1     }{\cf9 target_image}{\cf1  }{\cf6 =}{\cf1  }image_tensor{\cf1 \par
+}{\cf1     }#{\cf1  }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }target_image{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }target_image,{\cf1  }canvas,{\cf1  }imge_changed_flag{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }patch_transform{\cf6 (}{\cf1 \par
+}{\cf1         }u1,{\cf1  }u2,{\cf1 \par
+}{\cf1         }v1,{\cf1  }v2,{\cf1 \par
+}{\cf1         }target_points,{\cf1 \par
+}{\cf1         }source_points,{\cf1 \par
+}{\cf1         }image_tensor,{\cf1 \par
+}{\cf1         }smaller_flag{\cf1 \par
+}{\cf1     }{\cf6 )}:{\cf1 \par
+}{\cf1 \par
+}{\cf1     }try:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }smaller_flag:{\cf1 \par
+}{\cf1             }{\cf9 v1_larger}{\cf1  }{\cf6 =}{\cf1  }v1{\cf1  }-{\cf1  }{\cf6 (}v2{\cf1  }-{\cf1  }v1{\cf6 )}{\cf1  }*{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1             }{\cf9 v2_larger}{\cf1  }{\cf6 =}{\cf1  }v2{\cf1  }+{\cf1  }{\cf6 (}v2{\cf1  }-{\cf1  }v1{\cf6 )}{\cf1  }*{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 u1_larger}{\cf1  }{\cf6 =}{\cf1  }u1{\cf1  }-{\cf1  }{\cf6 (}u2{\cf1  }-{\cf1  }u1{\cf6 )}{\cf1  }*{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1             }{\cf9 u2_larger}{\cf1  }{\cf6 =}{\cf1  }u2{\cf1  }+{\cf1  }{\cf6 (}u2{\cf1  }-{\cf1  }u1{\cf6 )}{\cf1  }*{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 v1_larger}{\cf1  }{\cf6 =}{\cf1  }v1_larger.int{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 v2_larger}{\cf1  }{\cf6 =}{\cf1  }v2_larger.int{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 u1_larger}{\cf1  }{\cf6 =}{\cf1  }u1_larger.int{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 u2_larger}{\cf1  }{\cf6 =}{\cf1  }u2_larger.int{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_height_loacl}{\cf1  }{\cf6 =}{\cf1  }v2_larger{\cf1  }-{\cf1  }v1_larger{\cf1 \par
+}{\cf1             }{\cf9 target_width_loacl}{\cf1  }{\cf6 =}{\cf1  }u2_larger{\cf1  }-{\cf1  }u1_larger{\cf1 \par
+}{\cf1             }{\cf9 target_points_local}{\cf1  }{\cf6 =}{\cf1  }target_points.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }target_points_local{\cf6 [}:,0{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }u1_larger{\cf1 \par
+}{\cf1             }target_points_local{\cf6 [}:,1{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }v1_larger{\cf1 \par
+}{\cf1             }{\cf9 norm_target_points_local}{\cf1  }{\cf6 =}{\cf1  }target_points_local.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }norm_target_points_local{\cf6 [}:,0{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }target_points_local{\cf6 [}:,0{\cf6 ]}*2/target_width_loacl{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }norm_target_points_local{\cf6 [}:,1{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }target_points_local{\cf6 [}:,1{\cf6 ]}*2/target_height_loacl{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 source_points_local}{\cf1  }{\cf6 =}{\cf1  }source_points.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }source_points_local{\cf6 [}:,0{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }u1_larger{\cf1 \par
+}{\cf1             }source_points_local{\cf6 [}:,1{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }v1_larger{\cf1 \par
+}{\cf1             }{\cf9 norm_source_points_local}{\cf1  }{\cf6 =}{\cf1  }source_points_local.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }norm_source_points_local{\cf6 [}:,0{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }source_points_local{\cf6 [}:,0{\cf6 ]}*2/target_width_loacl{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }norm_source_points_local{\cf6 [}:,1{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }source_points_local{\cf6 [}:,1{\cf6 ]}*2/target_height_loacl{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 tps}{\cf1  }{\cf6 =}{\cf1  }TPSGridGen{\cf6 (}{\cf1   }{\cf1 \par
+}{\cf1                             }target_height_loacl,{\cf1  }{\cf1 \par
+}{\cf1                             }target_width_loacl,{\cf1  }{\cf1 \par
+}{\cf1                             }{\cf9 target_control_points}{\cf6 =}norm_target_points_local{\cf1 \par
+}{\cf1                             }{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 source_coordinate}{\cf1  }{\cf6 =}{\cf1  }tps{\cf6 (}norm_source_points_local.unsqueeze{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 grid_local}{\cf1  }{\cf6 =}{\cf1  }source_coordinate.view{\cf6 (}{\cf20 1},{\cf1  }target_height_loacl,{\cf1  }target_width_loacl,{\cf1  }{\cf20 2}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 source_image_local}{\cf1  }{\cf6 =}{\cf1  }safe_img_part_get_apply{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 image}{\cf6 =}image_tensor,{\cf1 \par
+}{\cf1                 }{\cf9 x1}{\cf6 =}u1_larger,{\cf1 \par
+}{\cf1                 }{\cf9 x2}{\cf6 =}u2_larger,{\cf1 \par
+}{\cf1                 }{\cf9 y1}{\cf6 =}v1_larger,{\cf1 \par
+}{\cf1                 }{\cf9 y2}{\cf6 =}v2_larger{\cf1 \par
+}{\cf1             }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 target_image_local}{\cf1  }{\cf6 =}{\cf1  }F.grid_sample{\cf6 (}source_image_local{\cf6 [}None{\cf6 ]},{\cf1  }grid_local,{\cf1  }{\cf9 padding_mode}{\cf6 =}{\cf13 "border"},{\cf1  }{\cf9 align_corners}{\cf6 =}False{\cf6 )}.squeeze{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 local_center_u1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}{\cf6 (}u2{\cf1  }-{\cf1  }u1{\cf6 )}{\cf1  }*{\cf1  }{\cf20 0}.5{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 local_center_v1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}{\cf6 (}v2{\cf1  }-{\cf1  }v1{\cf6 )}{\cf1  }*{\cf1  }{\cf20 0}.5{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_image_local_center}{\cf1  }{\cf6 =}{\cf1  }target_image_local{\cf6 [}{\cf1 \par
+}{\cf1                 }:,{\cf1 \par
+}{\cf1                 }local_center_v1:local_center_v1{\cf1  }+{\cf1  }{\cf6 (}v2{\cf1  }-{\cf1  }v1{\cf6 )},{\cf1 \par
+}{\cf1                 }local_center_u1:local_center_u1{\cf1  }+{\cf1  }{\cf6 (}u2{\cf1  }-{\cf1  }u1{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 target_image}{\cf1  }{\cf6 =}{\cf1  }safe_img_patch_apply{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 image}{\cf6 =}image_tensor,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 patch}{\cf6 =}target_image_local_center,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 x1}{\cf6 =}u1,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 y1}{\cf6 =}v1{\cf1 \par
+}{\cf1                 }{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }target_image{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 target_height_loacl}{\cf1  }{\cf6 =}{\cf1  }v2{\cf1  }-{\cf1  }v1{\cf1 \par
+}{\cf1             }{\cf9 target_width_loacl}{\cf1  }{\cf6 =}{\cf1  }u2{\cf1  }-{\cf1  }u1{\cf1 \par
+}{\cf1             }{\cf9 target_points_local}{\cf1  }{\cf6 =}{\cf1  }target_points.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }target_points_local{\cf6 [}:,0{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }u1{\cf1 \par
+}{\cf1             }target_points_local{\cf6 [}:,1{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }v1{\cf1 \par
+}{\cf1             }{\cf9 norm_target_points_local}{\cf1  }{\cf6 =}{\cf1  }target_points_local.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }norm_target_points_local{\cf6 [}:,0{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }target_points_local{\cf6 [}:,0{\cf6 ]}*2/target_width_loacl{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }norm_target_points_local{\cf6 [}:,1{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }target_points_local{\cf6 [}:,1{\cf6 ]}*2/target_height_loacl{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 source_points_local}{\cf1  }{\cf6 =}{\cf1  }source_points.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }source_points_local{\cf6 [}:,0{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }u1{\cf1 \par
+}{\cf1             }source_points_local{\cf6 [}:,1{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }v1{\cf1 \par
+}{\cf1             }{\cf9 norm_source_points_local}{\cf1  }{\cf6 =}{\cf1  }source_points_local.clone{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }norm_source_points_local{\cf6 [}:,0{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }source_points_local{\cf6 [}:,0{\cf6 ]}*2/target_width_loacl{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }norm_source_points_local{\cf6 [}:,1{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }source_points_local{\cf6 [}:,1{\cf6 ]}*2/target_height_loacl{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1   }{\cf1 \par
+}{\cf1             }{\cf9 tps}{\cf1  }{\cf6 =}{\cf1  }TPSGridGen{\cf6 (}{\cf1   }{\cf1 \par
+}{\cf1                             }target_height_loacl,{\cf1  }{\cf1 \par
+}{\cf1                             }target_width_loacl,{\cf1  }{\cf1 \par
+}{\cf1                             }{\cf9 target_control_points}{\cf6 =}norm_target_points_local{\cf1 \par
+}{\cf1                             }{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 source_coordinate}{\cf1  }{\cf6 =}{\cf1  }tps{\cf6 (}norm_source_points_local.unsqueeze{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 grid_local}{\cf1  }{\cf6 =}{\cf1  }source_coordinate.view{\cf6 (}{\cf20 1},{\cf1  }target_height_loacl,{\cf1  }target_width_loacl,{\cf1  }{\cf20 2}{\cf6 )}{\cf1 \par
+}{\cf1             }#{\cf1  }{\cf9 source_image_local}{\cf1  }{\cf6 =}{\cf1  }image_tensor{\cf6 [}:,{\cf1  }v1:v2,{\cf1  }u1:u2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 source_image_local}{\cf1  }{\cf6 =}{\cf1  }safe_img_part_get_apply{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 image}{\cf6 =}image_tensor,{\cf1 \par
+}{\cf1                 }{\cf9 x1}{\cf6 =}u1,{\cf1 \par
+}{\cf1                 }{\cf9 x2}{\cf6 =}u2,{\cf1 \par
+}{\cf1                 }{\cf9 y1}{\cf6 =}v1,{\cf1 \par
+}{\cf1                 }{\cf9 y2}{\cf6 =}v2{\cf1 \par
+}{\cf1             }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 target_image_local}{\cf1  }{\cf6 =}{\cf1  }F.grid_sample{\cf6 (}source_image_local{\cf6 [}None{\cf6 ]},{\cf1  }grid_local,{\cf1  }{\cf9 padding_mode}{\cf6 =}{\cf13 "border"},{\cf1  }{\cf9 align_corners}{\cf6 =}False{\cf6 )}.squeeze{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 local_center_u1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}{\cf6 (}u2{\cf1  }-{\cf1  }u1{\cf6 )}{\cf1  }*{\cf1  }{\cf20 0}.5{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 local_center_v1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}{\cf6 (}v2{\cf1  }-{\cf1  }v1{\cf6 )}{\cf1  }*{\cf1  }{\cf20 0}.5{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 target_image_local_center}{\cf1  }{\cf6 =}{\cf1  }target_image_local{\cf6 [}{\cf1 \par
+}{\cf1                 }:,{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 target_image}{\cf1  }{\cf6 =}{\cf1  }safe_img_patch_apply{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 image}{\cf6 =}image_tensor,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 patch}{\cf6 =}target_image_local_center,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 x1}{\cf6 =}u1,{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 y1}{\cf6 =}v1{\cf1 \par
+}{\cf1                 }{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }target_image{\cf1 \par
+}{\cf1 \par
+}{\cf1     }except:{\cf1 \par
+}{\cf1         }{\cf9 image_tensor}{\cf1  }{\cf6 =}{\cf1  }image_tensor{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }image_tensor{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_4corner{\cf6 (}points{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 uv_min}{\cf1  }{\cf6 =}{\cf1  }points.min{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 uv_max}{\cf1  }{\cf6 =}{\cf1  }points.max{\cf6 (}{\cf20 0}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1     }u1,v1{\cf1  }{\cf6 =}{\cf1  }uv_min{\cf1 \par
+}{\cf1     }u2,v2{\cf1  }{\cf6 =}{\cf1  }uv_max{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }torch.Tensor{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1         }{\cf6 [}u1,v1{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf6 [}u1,v2{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf6 [}u2,v1{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf6 [}u2,v2{\cf6 ]},{\cf1 \par
+}{\cf1     }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageBBoxMotionBlurFrontBack{\cf6 (}{\cf6 )}:{\cf1  }{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }{\cf9 corrput_list}{\cf6 =}{\cf6 [}{\cf20 0}.02*i{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 1},6{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1         }self.corrpution{\cf1  }{\cf6 =}{\cf1  }corrput_list{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }lidar2img,{\cf1  }bboxes_centers,{\cf1  }bboxes_corners,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 img_height}{\cf6 =}image.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf6 =}image.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 corrpution}{\cf1  }{\cf6 =}{\cf1  }self.corrpution{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }{\cf9 canvas}{\cf1  }{\cf6 =}{\cf1  }image.copy{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_num}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 mask}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}canvas.shape{\cf6 [}{\cf20 0}{\cf6 ]},canvas.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }idx_b{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}bboxes_num{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 corners}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners{\cf6 [}idx_b{\cf6 ]}{\cf1    }#{\cf1  }{\cf20 8}*3{\cf1 \par
+}{\cf1             }{\cf9 mask_temp}{\cf1  }{\cf6 =}{\cf1  }np.zeros_like{\cf6 (}mask{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 corners_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}corners,{\cf1  }{\cf9 proj_mat}{\cf6 =}lidar2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 corners_uv}{\cf1  }{\cf6 =}{\cf1  }corners_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 corners_depth}{\cf1  }{\cf6 =}{\cf1  }corners_uvd{\cf6 [}:,2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 corners_keep_flag}{\cf1  }{\cf6 =}{\cf1  }corners_depth{\cf1  }>{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1             }{\cf9 corners_uv}{\cf1  }{\cf6 =}{\cf1  }corners_uv{\cf6 [}corners_keep_flag{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }corners_uv.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf9 hull}{\cf1  }{\cf6 =}{\cf1  }cv2.convexHull{\cf6 (}corners_uv.numpy{\cf6 (}{\cf6 )}.astype{\cf6 (}np.int{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }cv2.fillConvexPoly{\cf6 (}mask_temp,{\cf1  }hull,{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 mask}{\cf1  }{\cf6 =}{\cf1  }mask{\cf1  }+{\cf1  }mask_temp{\cf1 \par
+}{\cf1         }{\cf9 mask_bool_float}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}mask>0{\cf6 )}.astype{\cf6 (}np.float32{\cf6 )}{\cf6 [}:,:,None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 image_aug_layer}{\cf1  }{\cf6 =}{\cf1  }self.zoom_blur{\cf6 (}image_rgb_255,{\cf1  }corrpution{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }image_aug_layer{\cf1  }*{\cf1  }mask_bool_float{\cf1  }+{\cf1  }{\cf6 (}{\cf20 1}-mask_bool_float{\cf6 )}{\cf1  }*{\cf1  }image_rgb_255{\cf1 \par
+}{\cf1         }{\cf9 image_aug_np_rgb_255}{\cf1  }{\cf6 =}{\cf1  }images_aug.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 mask_bool_float_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}mask_bool_float{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.repeat{\cf6 (}{\cf20 3},1,1{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 images_aug_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}images_aug{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}/255{\cf1 \par
+}{\cf1             }save_image{\cf6 (}{\cf6 [}mask_bool_float_tensor,{\cf1  }images_aug_tensor{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1             }#{\cf1  }print{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug_np_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }zoom_blur{\cf6 (}self,{\cf1  }x,{\cf1  }corrpution{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }corrpution{\cf1  }<{\cf6 =}{\cf1  }{\cf20 0}.02:{\cf1 \par
+}{\cf1             }{\cf9 c}{\cf1  }{\cf6 =}{\cf1  }np.arange{\cf6 (}{\cf20 1},{\cf1  }{\cf20 1}+corrpution,{\cf1  }{\cf20 0}.005{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 c}{\cf1  }{\cf6 =}{\cf1  }np.linspace{\cf6 (}{\cf20 1},{\cf1  }{\cf20 1}+corrpution,{\cf1  }{\cf20 4}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}np.array{\cf6 (}x{\cf6 )}{\cf1  }/{\cf1  }{\cf20 255}.{\cf6 )}.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 out}{\cf1  }{\cf6 =}{\cf1  }np.zeros_like{\cf6 (}x{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 set_exception}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }zoom_factor{\cf1  }{\cf3\b in}{\cf1  }c:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }len{\cf6 (}x.shape{\cf6 )}{\cf1  }<{\cf1  }{\cf20 3}{\cf1  }or{\cf1  }x.shape{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1  }<{\cf1  }{\cf20 3}:{\cf1 \par
+}{\cf1                 }{\cf9 x_channels}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}x,{\cf1  }x,{\cf1  }x{\cf6 ]}{\cf6 )}.transpose{\cf6 (}{\cf6 (}{\cf20 1},{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }self.clipped_zoom{\cf6 (}x_channels,{\cf1  }zoom_factor{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }zoom_layer{\cf6 [}:x.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:x.shape{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }self.clipped_zoom{\cf6 (}x,{\cf1  }zoom_factor{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }zoom_layer{\cf6 [}:x.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:x.shape{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1  }:{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }try:{\cf1 \par
+}{\cf1                 }{\cf9 out}{\cf1  }{\cf6 +=}{\cf1  }zoom_layer{\cf1 \par
+}{\cf1             }except{\cf1  }ValueError:{\cf1 \par
+}{\cf1                 }{\cf9 set_exception}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1                 }out{\cf6 [}:zoom_layer.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:zoom_layer.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }zoom_layer{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }set_exception:{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf13 'ValueError for zoom blur, Exception handling'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}x{\cf1  }+{\cf1  }out{\cf6 )}{\cf1  }/{\cf1  }{\cf6 (}len{\cf6 (}c{\cf6 )}{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }{\cf6 (}np.clip{\cf6 (}x,{\cf1  }{\cf20 0},{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 255}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }clipped_zoom{\cf6 (}self,{\cf1  }img,{\cf1  }zoom_factor{\cf6 )}:{\cf1 \par
+}{\cf1         }#{\cf1  }clipping{\cf1  }along{\cf1  }the{\cf1  }width{\cf1  }dimension:{\cf1 \par
+}{\cf1         }{\cf9 ch0}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}np.ceil{\cf6 (}img.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }/{\cf1  }float{\cf6 (}zoom_factor{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 top0}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}img.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }-{\cf1  }ch0{\cf6 )}{\cf1  }//{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }clipping{\cf1  }along{\cf1  }the{\cf1  }height{\cf1  }dimension:{\cf1 \par
+}{\cf1         }{\cf9 ch1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}np.ceil{\cf6 (}img.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1  }/{\cf1  }float{\cf6 (}zoom_factor{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 top1}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}img.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1  }-{\cf1  }ch1{\cf6 )}{\cf1  }//{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1         }{\cf9 img}{\cf1  }{\cf6 =}{\cf1  }scizoom{\cf6 (}img{\cf6 [}top0:top0{\cf1  }+{\cf1  }ch0,{\cf1  }top1:top1{\cf1  }+{\cf1  }ch1{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf6 (}zoom_factor,{\cf1  }zoom_factor,{\cf1  }{\cf20 1}{\cf6 )},{\cf1  }{\cf9 order}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }img{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageBBoxMotionBlurFrontBackMono{\cf6 (}{\cf6 )}:{\cf1  }{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }{\cf9 corrput_list}{\cf6 =}{\cf6 [}{\cf20 0}.02*i{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 1},6{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1         }self.corrpution{\cf1  }{\cf6 =}{\cf1  }corrput_list{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }cam2img,{\cf1  }bboxes_centers,{\cf1  }bboxes_corners,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 img_height}{\cf6 =}image.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf6 =}image.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 corrpution}{\cf1  }{\cf6 =}{\cf1  }self.corrpution{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }{\cf9 canvas}{\cf1  }{\cf6 =}{\cf1  }image.copy{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_num}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 mask}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}canvas.shape{\cf6 [}{\cf20 0}{\cf6 ]},canvas.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }idx_b{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}bboxes_num{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 corners}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners{\cf6 [}idx_b{\cf6 ]}{\cf1    }#{\cf1  }{\cf20 8}*3{\cf1 \par
+}{\cf1             }{\cf9 mask_temp}{\cf1  }{\cf6 =}{\cf1  }np.zeros_like{\cf6 (}mask{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 corners_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}corners,{\cf1  }{\cf9 proj_mat}{\cf6 =}cam2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 corners_uv}{\cf1  }{\cf6 =}{\cf1  }corners_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 corners_depth}{\cf1  }{\cf6 =}{\cf1  }corners_uvd{\cf6 [}:,2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 corners_keep_flag}{\cf1  }{\cf6 =}{\cf1  }corners_depth{\cf1  }>{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1             }{\cf9 corners_uv}{\cf1  }{\cf6 =}{\cf1  }corners_uv{\cf6 [}corners_keep_flag{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }corners_uv.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf9 hull}{\cf1  }{\cf6 =}{\cf1  }cv2.convexHull{\cf6 (}corners_uv.numpy{\cf6 (}{\cf6 )}.astype{\cf6 (}np.int{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }cv2.fillConvexPoly{\cf6 (}mask_temp,{\cf1  }hull,{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 mask}{\cf1  }{\cf6 =}{\cf1  }mask{\cf1  }+{\cf1  }mask_temp{\cf1 \par
+}{\cf1         }{\cf9 mask_bool_float}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}mask>0{\cf6 )}.astype{\cf6 (}np.float32{\cf6 )}{\cf6 [}:,:,None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 image_aug_layer}{\cf1  }{\cf6 =}{\cf1  }self.zoom_blur{\cf6 (}image_rgb_255,{\cf1  }corrpution{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }image_aug_layer{\cf1  }*{\cf1  }mask_bool_float{\cf1  }+{\cf1  }{\cf6 (}{\cf20 1}-mask_bool_float{\cf6 )}{\cf1  }*{\cf1  }image_rgb_255{\cf1 \par
+}{\cf1         }{\cf9 image_aug_np_rgb_255}{\cf1  }{\cf6 =}{\cf1  }images_aug.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 mask_bool_float_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}mask_bool_float{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.repeat{\cf6 (}{\cf20 3},1,1{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 images_aug_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}images_aug{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}/255{\cf1 \par
+}{\cf1             }save_image{\cf6 (}{\cf6 [}mask_bool_float_tensor,{\cf1  }images_aug_tensor{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1             }#{\cf1  }print{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug_np_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }zoom_blur{\cf6 (}self,{\cf1  }x,{\cf1  }corrpution{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 c}{\cf1  }{\cf6 =}{\cf1  }np.arange{\cf6 (}{\cf20 1},{\cf1  }{\cf20 1}+corrpution,{\cf1  }{\cf20 0}.005{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}np.array{\cf6 (}x{\cf6 )}{\cf1  }/{\cf1  }{\cf20 255}.{\cf6 )}.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 out}{\cf1  }{\cf6 =}{\cf1  }np.zeros_like{\cf6 (}x{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 set_exception}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }zoom_factor{\cf1  }{\cf3\b in}{\cf1  }c:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }len{\cf6 (}x.shape{\cf6 )}{\cf1  }<{\cf1  }{\cf20 3}{\cf1  }or{\cf1  }x.shape{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1  }<{\cf1  }{\cf20 3}:{\cf1 \par
+}{\cf1                 }{\cf9 x_channels}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}x,{\cf1  }x,{\cf1  }x{\cf6 ]}{\cf6 )}.transpose{\cf6 (}{\cf6 (}{\cf20 1},{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }self.clipped_zoom{\cf6 (}x_channels,{\cf1  }zoom_factor{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }zoom_layer{\cf6 [}:x.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:x.shape{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }self.clipped_zoom{\cf6 (}x,{\cf1  }zoom_factor{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }zoom_layer{\cf6 [}:x.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:x.shape{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1  }:{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }try:{\cf1 \par
+}{\cf1                 }{\cf9 out}{\cf1  }{\cf6 +=}{\cf1  }zoom_layer{\cf1 \par
+}{\cf1             }except{\cf1  }ValueError:{\cf1 \par
+}{\cf1                 }{\cf9 set_exception}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1                 }out{\cf6 [}:zoom_layer.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:zoom_layer.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }zoom_layer{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }set_exception:{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf13 'ValueError for zoom blur, Exception handling'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}x{\cf1  }+{\cf1  }out{\cf6 )}{\cf1  }/{\cf1  }{\cf6 (}len{\cf6 (}c{\cf6 )}{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }{\cf6 (}np.clip{\cf6 (}x,{\cf1  }{\cf20 0},{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 255}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }clipped_zoom{\cf6 (}self,{\cf1  }img,{\cf1  }zoom_factor{\cf6 )}:{\cf1 \par
+}{\cf1         }#{\cf1  }clipping{\cf1  }along{\cf1  }the{\cf1  }width{\cf1  }dimension:{\cf1 \par
+}{\cf1         }{\cf9 ch0}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}np.ceil{\cf6 (}img.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }/{\cf1  }float{\cf6 (}zoom_factor{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 top0}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}img.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }-{\cf1  }ch0{\cf6 )}{\cf1  }//{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }clipping{\cf1  }along{\cf1  }the{\cf1  }height{\cf1  }dimension:{\cf1 \par
+}{\cf1         }{\cf9 ch1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}np.ceil{\cf6 (}img.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1  }/{\cf1  }float{\cf6 (}zoom_factor{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 top1}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}img.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1  }-{\cf1  }ch1{\cf6 )}{\cf1  }//{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1         }{\cf9 img}{\cf1  }{\cf6 =}{\cf1  }scizoom{\cf6 (}img{\cf6 [}top0:top0{\cf1  }+{\cf1  }ch0,{\cf1  }top1:top1{\cf1  }+{\cf1  }ch1{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf6 (}zoom_factor,{\cf1  }zoom_factor,{\cf1  }{\cf20 1}{\cf6 )},{\cf1  }{\cf9 order}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }img{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageBBoxMotionBlurLeftRight{\cf6 (}{\cf6 )}:{\cf1  }{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }{\cf9 corrput_list}{\cf6 =}{\cf6 [}{\cf20 0}.02*i{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 1},6{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1         }self.corrpution{\cf1  }{\cf6 =}{\cf1  }corrput_list{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }lidar2img,{\cf1  }bboxes_centers,{\cf1  }bboxes_corners,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 img_height}{\cf6 =}image.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf6 =}image.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 corrpution}{\cf1  }{\cf6 =}{\cf1  }self.corrpution{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }corruption{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 kernel_size}{\cf1  }{\cf6 =}{\cf1  }corrpution{\cf1  }*{\cf1  }img_width{\cf1  }*{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1         }{\cf9 kernel_size}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}kernel_size{\cf6 )}{\cf1 \par
+}{\cf1         }self.iaa_seq{\cf1  }{\cf6 =}{\cf1  }iaa.Sequential{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }iaa.MotionBlur{\cf6 (}{\cf9 k}{\cf6 =}kernel_size,{\cf1  }{\cf9 angle}{\cf6 =}{\cf20 90}{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }bboxes_corners{\cf1  }{\cf20 3}*8*3{\cf1    }tensor{\cf1  }{\cf1 \par
+}{\cf1         }#{\cf1  }lidar2img{\cf1  }{\cf20 4}*4{\cf1    }np.array{\cf1 \par
+}{\cf1         }{\cf9 canvas}{\cf1  }{\cf6 =}{\cf1  }image.copy{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_num}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 mask}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}canvas.shape{\cf6 [}{\cf20 0}{\cf6 ]},canvas.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }idx_b{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}bboxes_num{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 corners}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners{\cf6 [}idx_b{\cf6 ]}{\cf1    }#{\cf1  }{\cf20 8}*3{\cf1 \par
+}{\cf1             }{\cf9 mask_temp}{\cf1  }{\cf6 =}{\cf1  }np.zeros_like{\cf6 (}mask{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 corners_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}corners,{\cf1  }{\cf9 proj_mat}{\cf6 =}lidar2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 corners_uv}{\cf1  }{\cf6 =}{\cf1  }corners_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 corners_depth}{\cf1  }{\cf6 =}{\cf1  }corners_uvd{\cf6 [}:,2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 corners_keep_flag}{\cf1  }{\cf6 =}{\cf1  }corners_depth{\cf1  }>{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1             }{\cf9 corners_uv}{\cf1  }{\cf6 =}{\cf1  }corners_uv{\cf6 [}corners_keep_flag{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }corners_uv.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf9 hull}{\cf1  }{\cf6 =}{\cf1  }cv2.convexHull{\cf6 (}corners_uv.numpy{\cf6 (}{\cf6 )}.astype{\cf6 (}np.int{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }cv2.fillConvexPoly{\cf6 (}mask_temp,{\cf1  }hull,{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 mask}{\cf1  }{\cf6 =}{\cf1  }mask{\cf1  }+{\cf1  }mask_temp{\cf1 \par
+}{\cf1         }{\cf9 mask_bool_float}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}mask>0{\cf6 )}.astype{\cf6 (}np.float32{\cf6 )}{\cf6 [}:,:,None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image_rgb_255{\cf6 [}None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 image_aug_layer}{\cf1  }{\cf6 =}{\cf1  }self.iaa_seq{\cf6 (}{\cf9 images}{\cf6 =}images_rgb_255{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }image_aug_layer{\cf1  }*{\cf1  }mask_bool_float{\cf1  }+{\cf1  }{\cf6 (}{\cf20 1}-mask_bool_float{\cf6 )}{\cf1  }*{\cf1  }image_rgb_255{\cf1 \par
+}{\cf1         }{\cf9 image_aug_np_rgb_255}{\cf1  }{\cf6 =}{\cf1  }images_aug.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 mask_bool_float_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}mask_bool_float{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.repeat{\cf6 (}{\cf20 3},1,1{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 images_aug_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}images_aug{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}/255{\cf1 \par
+}{\cf1             }save_image{\cf6 (}{\cf6 [}mask_bool_float_tensor,{\cf1  }images_aug_tensor{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug_np_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageBBoxMotionBlurLeftRightMono{\cf6 (}{\cf6 )}:{\cf1  }{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }{\cf9 corrput_list}{\cf6 =}{\cf6 [}{\cf20 0}.02*i{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 1},6{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1         }self.corrpution{\cf1  }{\cf6 =}{\cf1  }corrput_list{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }cam2img,{\cf1  }bboxes_centers,{\cf1  }bboxes_corners,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 img_height}{\cf6 =}image.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf6 =}image.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 corrpution}{\cf1  }{\cf6 =}{\cf1  }self.corrpution{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }corruption{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 kernel_size}{\cf1  }{\cf6 =}{\cf1  }corrpution{\cf1  }*{\cf1  }img_width{\cf1  }*{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1         }{\cf9 kernel_size}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}kernel_size{\cf6 )}{\cf1 \par
+}{\cf1         }self.iaa_seq{\cf1  }{\cf6 =}{\cf1  }iaa.Sequential{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }iaa.MotionBlur{\cf6 (}{\cf9 k}{\cf6 =}kernel_size,{\cf1  }{\cf9 angle}{\cf6 =}{\cf20 90}{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }bboxes_corners{\cf1  }{\cf20 3}*8*3{\cf1    }tensor{\cf1  }{\cf1 \par
+}{\cf1         }#{\cf1  }cam2img{\cf1  }{\cf20 4}*4{\cf1    }np.array{\cf1 \par
+}{\cf1         }{\cf9 canvas}{\cf1  }{\cf6 =}{\cf1  }image.copy{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 bboxes_num}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 mask}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}canvas.shape{\cf6 [}{\cf20 0}{\cf6 ]},canvas.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }idx_b{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}bboxes_num{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 corners}{\cf1  }{\cf6 =}{\cf1  }bboxes_corners{\cf6 [}idx_b{\cf6 ]}{\cf1    }#{\cf1  }{\cf20 8}*3{\cf1 \par
+}{\cf1             }{\cf9 mask_temp}{\cf1  }{\cf6 =}{\cf1  }np.zeros_like{\cf6 (}mask{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 corners_uvd}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}corners,{\cf1  }{\cf9 proj_mat}{\cf6 =}cam2img,{\cf1  }{\cf9 with_depth}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 corners_uv}{\cf1  }{\cf6 =}{\cf1  }corners_uvd{\cf6 [}:,:2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 corners_depth}{\cf1  }{\cf6 =}{\cf1  }corners_uvd{\cf6 [}:,2{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 corners_keep_flag}{\cf1  }{\cf6 =}{\cf1  }corners_depth{\cf1  }>{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1             }{\cf9 corners_uv}{\cf1  }{\cf6 =}{\cf1  }corners_uv{\cf6 [}corners_keep_flag{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }corners_uv.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf9 hull}{\cf1  }{\cf6 =}{\cf1  }cv2.convexHull{\cf6 (}corners_uv.numpy{\cf6 (}{\cf6 )}.astype{\cf6 (}np.int{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }cv2.fillConvexPoly{\cf6 (}mask_temp,{\cf1  }hull,{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 mask}{\cf1  }{\cf6 =}{\cf1  }mask{\cf1  }+{\cf1  }mask_temp{\cf1 \par
+}{\cf1         }{\cf9 mask_bool_float}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}mask>0{\cf6 )}.astype{\cf6 (}np.float32{\cf6 )}{\cf6 [}:,:,None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image_rgb_255{\cf6 [}None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 image_aug_layer}{\cf1  }{\cf6 =}{\cf1  }self.iaa_seq{\cf6 (}{\cf9 images}{\cf6 =}images_rgb_255{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }image_aug_layer{\cf1  }*{\cf1  }mask_bool_float{\cf1  }+{\cf1  }{\cf6 (}{\cf20 1}-mask_bool_float{\cf6 )}{\cf1  }*{\cf1  }image_rgb_255{\cf1 \par
+}{\cf1         }{\cf9 image_aug_np_rgb_255}{\cf1  }{\cf6 =}{\cf1  }images_aug.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }{\cf9 mask_bool_float_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}mask_bool_float{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.repeat{\cf6 (}{\cf20 3},1,1{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 images_aug_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.from_numpy{\cf6 (}images_aug{\cf6 )}.float{\cf6 (}{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}/255{\cf1 \par
+}{\cf1             }save_image{\cf6 (}{\cf6 [}mask_bool_float_tensor,{\cf1  }images_aug_tensor{\cf6 ]},{\cf1  }{\cf9 nrow}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 fp}{\cf6 =}file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug_np_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageMotionBlurFrontBack{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }{\cf9 corrput_list}{\cf6 =}{\cf6 [}{\cf20 0}.02*i{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 1},6{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1         }self.corrpution{\cf1  }{\cf6 =}{\cf1  }corrput_list{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 corrpution}{\cf1  }{\cf6 =}{\cf1  }self.corrpution{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }self.zoom_blur{\cf6 (}image_rgb_255,{\cf1  }corrpution{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug_rgb_255}{\cf1  }{\cf6 =}{\cf1  }images_aug{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }save_image{\cf6 (}torch.from_numpy{\cf6 (}image_aug_rgb_255{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.,{\cf1  }file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }zoom_blur{\cf6 (}self,{\cf1  }x,{\cf1  }corrpution{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 c}{\cf1  }{\cf6 =}{\cf1  }np.arange{\cf6 (}{\cf20 1},{\cf1  }{\cf20 1}+corrpution,{\cf1  }{\cf20 0}.005{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}np.array{\cf6 (}x{\cf6 )}{\cf1  }/{\cf1  }{\cf20 255}.{\cf6 )}.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 out}{\cf1  }{\cf6 =}{\cf1  }np.zeros_like{\cf6 (}x{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 set_exception}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }zoom_factor{\cf1  }{\cf3\b in}{\cf1  }c:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }len{\cf6 (}x.shape{\cf6 )}{\cf1  }<{\cf1  }{\cf20 3}{\cf1  }or{\cf1  }x.shape{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1  }<{\cf1  }{\cf20 3}:{\cf1 \par
+}{\cf1                 }{\cf9 x_channels}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}x,{\cf1  }x,{\cf1  }x{\cf6 ]}{\cf6 )}.transpose{\cf6 (}{\cf6 (}{\cf20 1},{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }self.clipped_zoom{\cf6 (}x_channels,{\cf1  }zoom_factor{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }zoom_layer{\cf6 [}:x.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:x.shape{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }self.clipped_zoom{\cf6 (}x,{\cf1  }zoom_factor{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 zoom_layer}{\cf1  }{\cf6 =}{\cf1  }zoom_layer{\cf6 [}:x.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:x.shape{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1  }:{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }try:{\cf1 \par
+}{\cf1                 }{\cf9 out}{\cf1  }{\cf6 +=}{\cf1  }zoom_layer{\cf1 \par
+}{\cf1             }except{\cf1  }ValueError:{\cf1 \par
+}{\cf1                 }{\cf9 set_exception}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1                 }out{\cf6 [}:zoom_layer.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:zoom_layer.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }zoom_layer{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }set_exception:{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf13 'ValueError for zoom blur, Exception handling'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}x{\cf1  }+{\cf1  }out{\cf6 )}{\cf1  }/{\cf1  }{\cf6 (}len{\cf6 (}c{\cf6 )}{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }{\cf6 (}np.clip{\cf6 (}x,{\cf1  }{\cf20 0},{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 255}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }clipped_zoom{\cf6 (}self,{\cf1  }img,{\cf1  }zoom_factor{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 ch0}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}np.ceil{\cf6 (}img.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }/{\cf1  }float{\cf6 (}zoom_factor{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 top0}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}img.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }-{\cf1  }ch0{\cf6 )}{\cf1  }//{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1         }{\cf9 ch1}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}np.ceil{\cf6 (}img.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1  }/{\cf1  }float{\cf6 (}zoom_factor{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 top1}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}img.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1  }-{\cf1  }ch1{\cf6 )}{\cf1  }//{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1         }{\cf9 img}{\cf1  }{\cf6 =}{\cf1  }scizoom{\cf6 (}img{\cf6 [}top0:top0{\cf1  }+{\cf1  }ch0,{\cf1  }top1:top1{\cf1  }+{\cf1  }ch1{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf6 (}zoom_factor,{\cf1  }zoom_factor,{\cf1  }{\cf20 1}{\cf6 )},{\cf1  }{\cf9 order}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }img{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageMotionBlurLeftRight{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }{\cf9 corrput_list}{\cf6 =}{\cf6 [}{\cf20 0}.02*i{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 1},6{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1         }self.corrput_list{\cf1  }{\cf6 =}{\cf1  }corrput_list{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 img_width}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 kernel_size}{\cf6 =}self.corrput_list{\cf6 [}self.severity-1{\cf6 ]}{\cf1  }*{\cf1  }img_width{\cf1  }*{\cf1  }{\cf20 0}.5{\cf1 \par
+}{\cf1         }{\cf9 kernel_size}{\cf1  }{\cf6 =}{\cf1  }int{\cf6 (}kernel_size{\cf6 )}{\cf1 \par
+}{\cf1         }self.iaa_seq{\cf1  }{\cf6 =}{\cf1  }iaa.Sequential{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }iaa.MotionBlur{\cf6 (}{\cf9 k}{\cf6 =}kernel_size,{\cf1  }{\cf9 angle}{\cf6 =}{\cf20 90}{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }#{\cf1  }iaa{\cf1  }requires{\cf1  }rgb_255_uint8{\cf1  }img{\cf1 \par
+}{\cf1         }{\cf9 images}{\cf1  }{\cf6 =}{\cf1  }image_rgb_255{\cf6 [}None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }self.iaa_seq{\cf6 (}{\cf9 images}{\cf6 =}images{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug_rgb_255}{\cf1  }{\cf6 =}{\cf1  }images_aug{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }save_image{\cf6 (}torch.from_numpy{\cf6 (}image_aug_rgb_255{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.,{\cf1  }file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddGaussianNoise{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }seed{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.iaa_seq{\cf1  }{\cf6 =}{\cf1  }iaa.Sequential{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }iaa.imgcorruptlike.GaussianNoise{\cf6 (}{\cf9 severity}{\cf6 =}severity,{\cf1  }{\cf9 seed}{\cf6 =}seed{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }{\cf9 images}{\cf1  }{\cf6 =}{\cf1  }image_rgb_255{\cf6 [}None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }self.iaa_seq{\cf6 (}{\cf9 images}{\cf6 =}images{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug_rgb_255}{\cf1  }{\cf6 =}{\cf1  }images_aug{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }save_image{\cf6 (}torch.from_numpy{\cf6 (}image_aug_rgb_255{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.,{\cf1  }file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddImpulseNoise{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }seed{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.iaa_seq{\cf1  }{\cf6 =}{\cf1  }iaa.Sequential{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }iaa.imgcorruptlike.ImpulseNoise{\cf6 (}{\cf9 severity}{\cf6 =}severity,{\cf1  }{\cf9 seed}{\cf6 =}seed{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }#{\cf1  }iaa{\cf1  }requires{\cf1  }rgb_255_uint8{\cf1  }img{\cf1 \par
+}{\cf1         }{\cf9 images}{\cf1  }{\cf6 =}{\cf1  }image_rgb_255{\cf6 [}None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }self.iaa_seq{\cf6 (}{\cf9 images}{\cf6 =}images{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug_rgb_255}{\cf1  }{\cf6 =}{\cf1  }images_aug{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }save_image{\cf6 (}torch.from_numpy{\cf6 (}image_aug_rgb_255{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.,{\cf1  }file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddUniformNoise{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }print{\cf6 (}self.__class__.__name__,{\cf1  }{\cf13 ': please set numpy seed !'}{\cf6 )}{\cf1 \par
+}{\cf1         }self.severity{\cf1  }{\cf6 =}{\cf1  }severity{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }{\cf9 severity}{\cf1  }{\cf6 =}{\cf1  }self.severity{\cf1 \par
+}{\cf1         }#{\cf1  }iaa{\cf1  }requires{\cf1  }rgb_255_uint8{\cf1  }img{\cf1 \par
+}{\cf1         }{\cf9 image_aug_rgb_255}{\cf1  }{\cf6 =}{\cf1  }self.uniform_noise{\cf6 (}image_rgb_255,{\cf1  }severity{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }save_image{\cf6 (}torch.from_numpy{\cf6 (}image_aug_rgb_255{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.,{\cf1  }file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }uniform_noise{\cf6 (}self,{\cf1  }x,{\cf1  }severity{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 c}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}.08,{\cf1  }.12,{\cf1  }{\cf20 0}.18,{\cf1  }{\cf20 0}.26,{\cf1  }{\cf20 0}.38{\cf6 ]}{\cf6 [}severity{\cf1  }-{\cf1  }{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}x{\cf6 )}{\cf1  }/{\cf1  }{\cf20 255}.{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }{\cf6 (}np.clip{\cf6 (}x{\cf1  }+{\cf1  }np.random.uniform{\cf6 (}{\cf9 low}{\cf6 =}-c,{\cf1  }{\cf9 high}{\cf6 =}c,{\cf1  }{\cf9 size}{\cf6 =}x.shape{\cf6 )},{\cf1  }{\cf20 0},{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 255}{\cf6 )}.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddSnow{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }seed{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.iaa_seq{\cf1  }{\cf6 =}{\cf1  }iaa.Sequential{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }iaa.imgcorruptlike.Snow{\cf6 (}{\cf9 severity}{\cf6 =}severity,{\cf1  }{\cf9 seed}{\cf6 =}seed{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }#{\cf1  }add{\cf1  }snow{\cf1 \par
+}{\cf1         }#{\cf1  }iaa{\cf1  }requires{\cf1  }rgb_255_uint8{\cf1  }img{\cf1 \par
+}{\cf1         }{\cf9 images}{\cf1  }{\cf6 =}{\cf1  }image{\cf6 [}None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }self.iaa_seq{\cf6 (}{\cf9 images}{\cf6 =}images{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }images_aug{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }be{\cf1  }gray-like{\cf1 \par
+}{\cf1         }{\cf9 gray_ratio}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}.3{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }gray_ratio{\cf1  }*{\cf1  }np.ones_like{\cf6 (}image_aug{\cf6 )}*128{\cf1  }{\cf13\b \\\par
+}{\cf1             }+{\cf1  }{\cf6 (}{\cf20 1}{\cf1  }-{\cf1  }gray_ratio{\cf6 )}{\cf1  }*{\cf1  }image_aug{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }image_aug.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }lower{\cf1  }the{\cf1  }brightness{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image_aug{\cf1 \par
+}{\cf1         }{\cf9 img_hsv}{\cf1  }{\cf6 =}{\cf1  }cv2.cvtColor{\cf6 (}image_rgb_255,{\cf1  }cv2.COLOR_RGB2HSV{\cf6 )}.astype{\cf6 (}np.int64{\cf6 )}{\cf1 \par
+}{\cf1         }img_hsv{\cf6 [}:,:,2{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }img_hsv{\cf6 [}:,:,2{\cf6 ]}{\cf1  }/{\cf1  }img_hsv{\cf6 [}:,:,2{\cf6 ]}.max{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 256}{\cf1  }*{\cf1  }{\cf20 0}.7{\cf1 \par
+}{\cf1         }img_hsv{\cf6 [}:,:,2{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.clip{\cf6 (}img_hsv{\cf6 [}:,:,2{\cf6 ]},{\cf1  }{\cf20 0},255{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 img_hsv}{\cf1  }{\cf6 =}{\cf1  }img_hsv.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }cv2.cvtColor{\cf6 (}img_hsv,{\cf1  }cv2.COLOR_HSV2RGB{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }image_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }save_image{\cf6 (}torch.from_numpy{\cf6 (}image_aug{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.,{\cf1  }file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddFog{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }seed{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.iaa_seq{\cf1  }{\cf6 =}{\cf1  }iaa.Sequential{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }iaa.imgcorruptlike.Fog{\cf6 (}{\cf9 severity}{\cf6 =}severity,{\cf1  }{\cf9 seed}{\cf6 =}seed{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }self.gray_ratio{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf20 0}.1,{\cf1 \par
+}{\cf1             }{\cf20 0}.2,{\cf1 \par
+}{\cf1             }{\cf20 0}.3,{\cf1 \par
+}{\cf1             }{\cf20 0}.4,{\cf1 \par
+}{\cf1             }{\cf20 0}.5,{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image{\cf1 \par
+}{\cf1         }{\cf9 images}{\cf1  }{\cf6 =}{\cf1  }image_rgb_255{\cf6 [}None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }self.iaa_seq{\cf6 (}{\cf9 images}{\cf6 =}images{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug_rgb_255}{\cf1  }{\cf6 =}{\cf1  }images_aug{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }image_aug_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }be{\cf1  }gray-like{\cf1 \par
+}{\cf1         }{\cf9 gray_ratio}{\cf1  }{\cf6 =}{\cf1  }self.gray_ratio{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }gray_ratio{\cf1  }*{\cf1  }np.ones_like{\cf6 (}image_aug{\cf6 )}*128{\cf1  }{\cf13\b \\\par
+}{\cf1             }+{\cf1  }{\cf6 (}{\cf20 1}{\cf1  }-{\cf1  }gray_ratio{\cf6 )}{\cf1  }*{\cf1  }image_aug{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }image_aug.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }save_image{\cf6 (}torch.from_numpy{\cf6 (}image_aug{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.,{\cf1  }file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }ImageAddRain{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }severity,{\cf1  }seed{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }{\cf9 density}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf6 (}{\cf20 0}.01,0.06{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf6 (}{\cf20 0}.06,0.10{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf6 (}{\cf20 0}.10,0.15{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf6 (}{\cf20 0}.15,0.20{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf6 (}{\cf20 0}.20,0.25{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 [}severity-1{\cf6 ]}{\cf1 \par
+}{\cf1         }self.iaa_seq{\cf1  }{\cf6 =}{\cf1  }iaa.Sequential{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }iaa.RainLayer{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 density}{\cf6 =}density,{\cf1 \par
+}{\cf1                 }{\cf9 density_uniformity}{\cf6 =}{\cf6 (}{\cf20 0}.8,{\cf1  }{\cf20 1}.0{\cf6 )},{\cf1   }{\cf1 \par
+}{\cf1                 }{\cf9 drop_size}{\cf6 =}{\cf6 (}{\cf20 0}.4,{\cf1  }{\cf20 0}.6{\cf6 )},{\cf1   }{\cf1 \par
+}{\cf1                 }{\cf9 drop_size_uniformity}{\cf6 =}{\cf6 (}{\cf20 0}.2,{\cf1  }{\cf20 0}.5{\cf6 )},{\cf1   }{\cf1 \par
+}{\cf1                 }{\cf9 angle}{\cf6 =}{\cf6 (}-15,15{\cf6 )},{\cf1    }{\cf1 \par
+}{\cf1                 }{\cf9 speed}{\cf6 =}{\cf6 (}{\cf20 0}.04,{\cf1  }{\cf20 0}.20{\cf6 )},{\cf1   }{\cf1 \par
+}{\cf1                 }{\cf9 blur_sigma_fraction}{\cf6 =}{\cf6 (}{\cf20 0}.0001,0.001{\cf6 )},{\cf1    }{\cf1 \par
+}{\cf1                 }{\cf9 blur_sigma_limits}{\cf6 =}{\cf6 (}{\cf20 0}.5,{\cf1  }{\cf20 3}.75{\cf6 )},{\cf1    }{\cf1 \par
+}{\cf1                 }{\cf9 seed}{\cf6 =}seed{\cf1 \par
+}{\cf1             }{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__call__{\cf6 (}self,{\cf1  }image,{\cf1  }{\cf9 watch_img}{\cf6 =}False,{\cf1  }{\cf9 file_path}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1  }->{\cf1  }np.array:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1             }image{\cf1  }should{\cf1  }be{\cf1  }numpy{\cf1  }array{\cf1  }:{\cf1  }H{\cf1  }*{\cf1  }W{\cf1  }*{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1             }{\cf3\b in}{\cf1  }uint8{\cf1  }{\cf6 (}{\cf20 0}~255{\cf6 )}{\cf1  }and{\cf1  }RGB{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }#{\cf1  }add{\cf1  }rain{\cf1 \par
+}{\cf1         }#{\cf1  }iaa{\cf1  }requires{\cf1  }rgb_255_uint8{\cf1  }img{\cf1 \par
+}{\cf1         }{\cf9 images}{\cf1  }{\cf6 =}{\cf1  }image{\cf6 [}None{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 images_aug}{\cf1  }{\cf6 =}{\cf1  }self.iaa_seq{\cf6 (}{\cf9 images}{\cf6 =}images{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }images_aug{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }be{\cf1  }gray-like{\cf1 \par
+}{\cf1         }{\cf9 gray_ratio}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}.3{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }gray_ratio{\cf1  }*{\cf1  }np.ones_like{\cf6 (}image_aug{\cf6 )}*128{\cf1  }{\cf13\b \\\par
+}{\cf1             }+{\cf1  }{\cf6 (}{\cf20 1}{\cf1  }-{\cf1  }gray_ratio{\cf6 )}{\cf1  }*{\cf1  }image_aug{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }image_aug.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }lower{\cf1  }the{\cf1  }brightness{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }image_aug{\cf1 \par
+}{\cf1         }{\cf9 img_hsv}{\cf1  }{\cf6 =}{\cf1  }cv2.cvtColor{\cf6 (}image_rgb_255,{\cf1  }cv2.COLOR_RGB2HSV{\cf6 )}.astype{\cf6 (}np.int64{\cf6 )}{\cf1 \par
+}{\cf1         }img_hsv{\cf6 [}:,:,2{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }img_hsv{\cf6 [}:,:,2{\cf6 ]}{\cf1  }/{\cf1  }img_hsv{\cf6 [}:,:,2{\cf6 ]}.max{\cf6 (}{\cf6 )}{\cf1  }*{\cf1  }{\cf20 256}{\cf1  }*{\cf1  }{\cf20 0}.7{\cf1 \par
+}{\cf1         }img_hsv{\cf6 [}:,:,2{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.clip{\cf6 (}img_hsv{\cf6 [}:,:,2{\cf6 ]},{\cf1  }{\cf20 0},255{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 img_hsv}{\cf1  }{\cf6 =}{\cf1  }img_hsv.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_rgb_255}{\cf1  }{\cf6 =}{\cf1  }cv2.cvtColor{\cf6 (}img_hsv,{\cf1  }cv2.COLOR_HSV2RGB{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }image_rgb_255{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }watch_img:{\cf1 \par
+}{\cf1             }save_image{\cf6 (}torch.from_numpy{\cf6 (}image_aug{\cf6 )}.permute{\cf6 (}{\cf20 2},0,1{\cf6 )}.float{\cf6 (}{\cf6 )}{\cf1  }/255.,{\cf1  }file_path{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image_aug{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }_extend_matrix{\cf6 (}mat{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 mat}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}mat,{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 [}{\cf20 0}.,{\cf1  }{\cf20 0}.,{\cf1  }{\cf20 0}.,{\cf1  }{\cf20 1}.{\cf6 ]}{\cf6 ]}{\cf6 )}{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }mat{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }read_kitti_info{\cf6 (}calib_path,{\cf1  }extend_matrix{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 calib_info}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf9 info}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf6 \}}{\cf1 \par
+}{\cf1     }with{\cf1  }open{\cf6 (}calib_path,{\cf1  }{\cf13 'r'}{\cf6 )}{\cf1  }as{\cf1  }f:{\cf1 \par
+}{\cf1         }{\cf9 lines}{\cf1  }{\cf6 =}{\cf1  }f.readlines{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 P0}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}float{\cf6 (}info{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }info{\cf1  }{\cf3\b in}{\cf1  }lines{\cf6 [}{\cf20 0}{\cf6 ]}.split{\cf6 (}{\cf13 ' '}{\cf6 )}{\cf6 [}{\cf20 1}:13{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf6 ]}{\cf6 )}.reshape{\cf6 (}{\cf6 [}{\cf20 3},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 P1}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}float{\cf6 (}info{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }info{\cf1  }{\cf3\b in}{\cf1  }lines{\cf6 [}{\cf20 1}{\cf6 ]}.split{\cf6 (}{\cf13 ' '}{\cf6 )}{\cf6 [}{\cf20 1}:13{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf6 ]}{\cf6 )}.reshape{\cf6 (}{\cf6 [}{\cf20 3},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 P2}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}float{\cf6 (}info{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }info{\cf1  }{\cf3\b in}{\cf1  }lines{\cf6 [}{\cf20 2}{\cf6 ]}.split{\cf6 (}{\cf13 ' '}{\cf6 )}{\cf6 [}{\cf20 1}:13{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf6 ]}{\cf6 )}.reshape{\cf6 (}{\cf6 [}{\cf20 3},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 P3}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}float{\cf6 (}info{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }info{\cf1  }{\cf3\b in}{\cf1  }lines{\cf6 [}{\cf20 3}{\cf6 ]}.split{\cf6 (}{\cf13 ' '}{\cf6 )}{\cf6 [}{\cf20 1}:13{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf6 ]}{\cf6 )}.reshape{\cf6 (}{\cf6 [}{\cf20 3},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }#{\cf1  }{\cf9 P4}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}float{\cf6 (}info{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }info{\cf1  }{\cf3\b in}{\cf1  }lines{\cf6 [}{\cf20 4}{\cf6 ]}.split{\cf6 (}{\cf13 ' '}{\cf6 )}{\cf6 [}{\cf20 1}:13{\cf6 ]}{\cf1 \par
+}{\cf1     }#{\cf1                  }{\cf6 ]}{\cf6 )}.reshape{\cf6 (}{\cf6 [}{\cf20 3},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }extend_matrix:{\cf1 \par
+}{\cf1         }{\cf9 P0}{\cf1  }{\cf6 =}{\cf1  }_extend_matrix{\cf6 (}P0{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 P1}{\cf1  }{\cf6 =}{\cf1  }_extend_matrix{\cf6 (}P1{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 P2}{\cf1  }{\cf6 =}{\cf1  }_extend_matrix{\cf6 (}P2{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 P3}{\cf1  }{\cf6 =}{\cf1  }_extend_matrix{\cf6 (}P3{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }{\cf9 P4}{\cf1  }{\cf6 =}{\cf1  }_extend_matrix{\cf6 (}P4{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 R0_rect}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1         }float{\cf6 (}info{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }info{\cf1  }{\cf3\b in}{\cf1  }lines{\cf6 [}{\cf20 5}-1{\cf6 ]}.split{\cf6 (}{\cf13 ' '}{\cf6 )}{\cf6 [}{\cf20 1}:10{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf6 ]}{\cf6 )}.reshape{\cf6 (}{\cf6 [}{\cf20 3},{\cf1  }{\cf20 3}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }extend_matrix:{\cf1 \par
+}{\cf1         }{\cf9 rect_4x4}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 [}{\cf20 4},{\cf1  }{\cf20 4}{\cf6 ]},{\cf1  }{\cf9 dtype}{\cf6 =}R0_rect.dtype{\cf6 )}{\cf1 \par
+}{\cf1         }rect_4x4{\cf6 [}{\cf20 3},{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}.{\cf1 \par
+}{\cf1         }rect_4x4{\cf6 [}:3,{\cf1  }:3{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }R0_rect{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }{\cf9 rect_4x4}{\cf1  }{\cf6 =}{\cf1  }R0_rect{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 Tr_velo_to_cam}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1         }float{\cf6 (}info{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }info{\cf1  }{\cf3\b in}{\cf1  }lines{\cf6 [}{\cf20 6}-1{\cf6 ]}.split{\cf6 (}{\cf13 ' '}{\cf6 )}{\cf6 [}{\cf20 1}:13{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf6 ]}{\cf6 )}.reshape{\cf6 (}{\cf6 [}{\cf20 3},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }extend_matrix:{\cf1 \par
+}{\cf1         }{\cf9 Tr_velo_to_cam}{\cf1  }{\cf6 =}{\cf1  }_extend_matrix{\cf6 (}Tr_velo_to_cam{\cf6 )}{\cf1 \par
+}{\cf1     }calib_info{\cf6 [}{\cf13 'P0'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }P0{\cf1 \par
+}{\cf1     }calib_info{\cf6 [}{\cf13 'P1'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }P1{\cf1 \par
+}{\cf1     }calib_info{\cf6 [}{\cf13 'P2'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }P2{\cf1 \par
+}{\cf1     }calib_info{\cf6 [}{\cf13 'P3'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }P3{\cf1 \par
+}{\cf1     }#{\cf1  }calib_info{\cf6 [}{\cf13 'P4'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }P4{\cf1 \par
+}{\cf1     }calib_info{\cf6 [}{\cf13 'R0_rect'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }rect_4x4{\cf1 \par
+}{\cf1     }calib_info{\cf6 [}{\cf13 'Tr_velo_to_cam'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }Tr_velo_to_cam{\cf1 \par
+}{\cf1     }info{\cf6 [}{\cf13 'calib'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }calib_info{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }info{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }safe_arctan_0to2pi{\cf6 (}xy{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }xy:{\cf1  }{\cf6 (}n,{\cf1  }{\cf20 2}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}:{\cf1  }{\cf6 (}n{\cf6 )}{\cf1  }{\cf3\b in}{\cf1  }{\cf6 [}{\cf20 0},2pi{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1     }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }xy{\cf6 [}:,0{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 y}{\cf1  }{\cf6 =}{\cf1  }xy{\cf6 [}:,1{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 safe_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}x!{\cf6 =}{\cf20 0}{\cf6 )}*{\cf6 (}y!{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 safe_x}{\cf1  }{\cf6 =}{\cf1  }x{\cf6 [}safe_mask{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 safe_y}{\cf1  }{\cf6 =}{\cf1  }y{\cf6 [}safe_mask{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 safe_quadrant_0_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}safe_x>0{\cf6 )}*{\cf6 (}safe_y>0{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 safe_quadrant_1_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}safe_x<{\cf20 0}{\cf6 )}*{\cf6 (}safe_y>0{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 safe_quadrant_2_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}safe_x<{\cf20 0}{\cf6 )}*{\cf6 (}safe_y<{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 safe_quadrant_3_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}safe_x>0{\cf6 )}*{\cf6 (}safe_y<{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 arctan_value}{\cf1  }{\cf6 =}{\cf1  }torch.zeros_like{\cf6 (}x{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 safe_arctan_value}{\cf1  }{\cf6 =}{\cf1  }{\cf13\b \\\par
+}{\cf1         }safe_quadrant_0_mask{\cf1  }*{\cf1  }torch.atan{\cf6 (}safe_y/safe_x{\cf6 )}{\cf1  }{\cf13\b \\\par
+}{\cf1         }+{\cf1  }safe_quadrant_1_mask{\cf1  }*{\cf1  }{\cf6 (}torch.atan{\cf6 (}safe_y/safe_x{\cf6 )}{\cf1  }+{\cf1  }np.pi{\cf6 )}{\cf13\b \\\par
+}{\cf1         }+{\cf1  }safe_quadrant_2_mask{\cf1  }*{\cf1  }{\cf6 (}torch.atan{\cf6 (}safe_y/safe_x{\cf6 )}{\cf1  }+{\cf1  }np.pi{\cf6 )}{\cf13\b \\\par
+}{\cf1         }+{\cf1  }safe_quadrant_3_mask{\cf1  }*{\cf1  }{\cf6 (}torch.atan{\cf6 (}safe_y/safe_x{\cf6 )}{\cf1  }+{\cf1  }{\cf20 2}*np.pi{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }arctan_value{\cf6 [}safe_mask{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }safe_arctan_value{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 axis_0_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}x>0{\cf6 )}*{\cf6 (}{\cf9 y}{\cf6 =}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 axis_1_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf9 x}{\cf6 =}{\cf6 =}{\cf20 0}{\cf6 )}*{\cf6 (}y>0{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 axis_2_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}x<{\cf20 0}{\cf6 )}*{\cf6 (}{\cf9 y}{\cf6 =}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 axis_3_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf9 x}{\cf6 =}{\cf6 =}{\cf20 0}{\cf6 )}*{\cf6 (}y<{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 origin_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf9 x}{\cf6 =}{\cf6 =}{\cf20 0}{\cf6 )}*{\cf6 (}{\cf9 y}{\cf6 =}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }arctan_value{\cf6 [}origin_mask{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }arctan_value{\cf6 [}axis_0_mask{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }arctan_value{\cf6 [}axis_1_mask{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.pi{\cf1  }/{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1     }arctan_value{\cf6 [}axis_2_mask{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.pi{\cf1 \par
+}{\cf1     }arctan_value{\cf6 [}axis_3_mask{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.pi{\cf1  }/2{\cf1  }*3{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }arctan_value{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }check_order_v{\cf6 (}index,{\cf1  }points{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }points{\cf6 [}index{\cf6 ]}{\cf6 [}{\cf20 0},1{\cf6 ]}{\cf1  }>{\cf1  }points{\cf6 [}index{\cf6 ]}{\cf6 [}{\cf20 1},1{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf9 index_new}{\cf1  }{\cf6 =}{\cf1  }index{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }{\cf9 index_new}{\cf1  }{\cf6 =}{\cf1  }index{\cf6 [}{\cf6 [}{\cf20 1},0{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }index_new{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_grid_points{\cf6 (}points4,{\cf1  }{\cf9 point_num}{\cf6 =}{\cf20 4}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf13 ''}{\chbrdr\chcfpat25 '}{\cf1 \par
+}{\cf1         }{\cf20 0}----2{\cf1 \par
+}{\cf1         }|{\cf1     }|{\cf1 \par
+}{\cf1         }{\cf20 1}----3{\cf1 \par
+}{\cf1     }{\cf13 ''}{\chbrdr\chcfpat25 '}{\cf1 \par
+}{\cf1     }{\cf9 new_points_list}{\cf6 =}{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 total_line_seg_num}{\cf1  }{\cf6 =}{\cf1  }point_num{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 0},{\cf1  }point_num{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 alpha}{\cf1  }{\cf6 =}{\cf1  }i/total_line_seg_num{\cf1 \par
+}{\cf1         }{\cf9 line_point_a}{\cf1  }{\cf6 =}{\cf1  }points4{\cf6 [}{\cf20 0}{\cf6 ]}*alpha{\cf1  }+{\cf1  }points4{\cf6 [}{\cf20 1}{\cf6 ]}*{\cf6 (}{\cf20 1}-alpha{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }len{\cf6 (}points4{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 2}:{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 line_point_b}{\cf1  }{\cf6 =}{\cf1  }points4{\cf6 [}{\cf20 2}{\cf6 ]}*alpha{\cf1  }+{\cf1  }points4{\cf6 [}{\cf20 3}{\cf6 ]}*{\cf6 (}{\cf20 1}-alpha{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }j{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 0},point_num{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 beta}{\cf1  }{\cf6 =}{\cf1  }j/total_line_seg_num{\cf1 \par
+}{\cf1             }{\cf9 new_point}{\cf1  }{\cf6 =}{\cf1  }line_point_a*beta{\cf1  }+{\cf1  }line_point_b*{\cf6 (}{\cf20 1}-beta{\cf6 )}{\cf1 \par
+}{\cf1             }new_points_list.append{\cf6 (}new_point{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 new_points_tensor}{\cf1  }{\cf6 =}{\cf1  }torch.stack{\cf6 (}new_points_list{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }new_points_tensor{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }safe_img_patch_apply{\cf6 (}image,{\cf1  }patch,{\cf1  }x1,{\cf1  }y1{\cf6 )}:{\cf1 \par
+}{\cf1     }assert{\cf1  }len{\cf6 (}image.shape{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }len{\cf6 (}patch.shape{\cf6 )}{\cf1 \par
+}{\cf1     }assert{\cf1  }image.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }patch.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }try:{\cf1 \par
+}{\cf1         }{\cf9 w_patch}{\cf1  }{\cf6 =}{\cf1  }patch.shape{\cf6 [}-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 h_patch}{\cf1  }{\cf6 =}{\cf1  }patch.shape{\cf6 [}-2{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 x2}{\cf1  }{\cf6 =}{\cf1  }x1{\cf1  }+{\cf1  }w_patch{\cf1 \par
+}{\cf1         }{\cf9 y2}{\cf1  }{\cf6 =}{\cf1  }y1{\cf1  }+{\cf1  }h_patch{\cf1 \par
+}{\cf1         }{\cf9 w_img}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf6 [}-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 h_img}{\cf1  }{\cf6 =}{\cf1  }image.shape{\cf6 [}-2{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 x1_use}{\cf1  }{\cf6 =}{\cf1  }x1{\cf1 \par
+}{\cf1         }{\cf9 x2_use}{\cf1  }{\cf6 =}{\cf1  }x2{\cf1 \par
+}{\cf1         }{\cf9 y1_use}{\cf1  }{\cf6 =}{\cf1  }y1{\cf1 \par
+}{\cf1         }{\cf9 y2_use}{\cf1  }{\cf6 =}{\cf1  }y2{\cf1 \par
+}{\cf1         }{\cf9 patch_use}{\cf1  }{\cf6 =}{\cf1  }patch{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }x1{\cf1  }<{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf9 x1_use}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1             }{\cf9 patch_use}{\cf1  }{\cf6 =}{\cf1  }patch_use{\cf6 [}:,{\cf1  }:,{\cf1  }-x1:{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }x1{\cf1  }>{\cf1  }w_img-1:{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }x2{\cf1  }>{\cf1  }w_img:{\cf1 \par
+}{\cf1             }{\cf9 x2_use}{\cf1  }{\cf6 =}{\cf1  }w_img{\cf1 \par
+}{\cf1             }{\cf9 patch_use}{\cf1  }{\cf6 =}{\cf1  }patch_use{\cf6 [}:,{\cf1  }:,{\cf1  }:-{\cf6 (}x2{\cf1  }-{\cf1  }w_img{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }x2{\cf1  }<{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }y1{\cf1  }<{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf9 y1_use}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1             }{\cf9 patch_use}{\cf1  }{\cf6 =}{\cf1  }patch_use{\cf6 [}:,{\cf1  }-y1:,{\cf1  }:{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }y1{\cf1  }>{\cf1  }h_img{\cf1  }-{\cf1  }{\cf20 1}:{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }y2{\cf1  }>{\cf1  }h_img:{\cf1 \par
+}{\cf1             }{\cf9 y2_use}{\cf1  }{\cf6 =}{\cf1  }h_img{\cf1 \par
+}{\cf1             }{\cf9 patch_use}{\cf1  }{\cf6 =}{\cf1  }patch_use{\cf6 [}:,{\cf1  }:-{\cf6 (}y2{\cf1  }-{\cf1  }h_img{\cf6 )},{\cf1  }:{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }y2{\cf1  }<{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1         }image{\cf6 [}:,{\cf1  }y1_use:y2_use,{\cf1  }x1_use:x2_use{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }patch_use{\cf1 \par
+}{\cf1     }except:{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }image{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }image{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }safe_img_part_get_apply{\cf6 (}image,{\cf1  }x1,{\cf1  }x2,{\cf1  }y1,{\cf1  }y2{\cf6 )}:{\cf1 \par
+}{\cf1     }#{\cf1  }inverse{\cf1  }imgpart{\cf1  }get{\cf1 \par
+}{\cf1     }#{\cf1  }regard{\cf1  }image{\cf1  }as{\cf1  }a{\cf1  }patch{\cf1  }and{\cf1  }use{\cf1  }the{\cf1  }other{\cf1  }{\cf3\b function}{\cf1 \par
+}{\cf1     }{\cf9 x1_inverse}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }-{\cf1  }x1{\cf1 \par
+}{\cf1     }{\cf9 y1_inverse}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }-{\cf1  }y1{\cf1 \par
+}{\cf1     }{\cf9 canvas}{\cf1  }{\cf6 =}{\cf1  }image.new_zeros{\cf6 (}image.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }y2{\cf1  }-{\cf1  }y1,{\cf1  }x2{\cf1  }-{\cf1  }x1{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 out}{\cf1  }{\cf6 =}{\cf1  }safe_img_patch_apply{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 image}{\cf6 =}canvas,{\cf1 \par
+}{\cf1         }{\cf9 patch}{\cf6 =}image,{\cf1 \par
+}{\cf1         }{\cf9 x1}{\cf6 =}x1_inverse,{\cf1 \par
+}{\cf1         }{\cf9 y1}{\cf6 =}y1_inverse{\cf1 \par
+}{\cf1     }{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }out{\cf1 \par
+}}

@@ -1,0 +1,218 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }os{\cf1 \par
+}import{\cf1  }argparse{\cf1 \par
+}import{\cf1  }datetime{\cf1 \par
+}import{\cf1  }glob{\cf1 \par
+}import{\cf1  }re{\cf1 \par
+}import{\cf1  }time{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pathlib}{\cf1  }import{\cf1  }Path{\cf1 \par
+}{\cf1 \par
+}import{\cf1  }numpy{\cf1  }as{\cf1  }np{\cf1 \par
+}import{\cf1  }torch{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 tensorboardX}{\cf1  }import{\cf1  }SummaryWriter{\cf1 \par
+}{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 eval_utils}{\cf1  }import{\cf1  }eval_utils{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.config}{\cf1  }import{\cf1  }cfg,{\cf1  }cfg_from_list,{\cf1  }cfg_from_yaml_file,{\cf1  }log_config_to_file{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.datasets}{\cf1  }import{\cf1  }build_dataloader{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.models}{\cf1  }import{\cf1  }build_network{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.utils}{\cf1  }import{\cf1  }common_utils{\cf1 \par
+}import{\cf1  }warnings{\cf1 \par
+}warnings.filterwarnings{\cf6 (}{\cf13 "ignore"}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }parse_config{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 parser}{\cf1  }{\cf6 =}{\cf1  }argparse.ArgumentParser{\cf6 (}{\cf9 description}{\cf6 =}{\cf13 'arg parser'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--cfg_file'},{\cf1  }{\cf9 type}{\cf6 =}str,{\cf1  }{\cf9 default}{\cf6 =}{\cf13 "cfgs/models/kitti/VirConv-S.yaml"},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'specify the config for training'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--batch_size'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1  }{\cf9 default}{\cf6 =}None,{\cf1  }{\cf9 required}{\cf6 =}False,{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'batch size for training'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--workers'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1  }{\cf9 default}{\cf6 =}{\cf20 0},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'number of workers for dataloader'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--extra_tag'},{\cf1  }{\cf9 type}{\cf6 =}str,{\cf1  }{\cf9 default}{\cf6 =}{\cf13 'default'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'extra tag for this experiment'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--ckpt'},{\cf1  }{\cf9 type}{\cf6 =}str,{\cf1  }{\cf9 default}{\cf6 =}{\cf13 "VirConv-S2.pth"},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'checkpoint to start from'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--launcher'},{\cf1  }{\cf9 choices}{\cf6 =}{\cf6 [}{\cf13 'none'},{\cf1  }{\cf13 'pytorch'},{\cf1  }{\cf13 'slurm'}{\cf6 ]},{\cf1  }{\cf9 default}{\cf6 =}{\cf13 'none'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--tcp_port'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1  }{\cf9 default}{\cf6 =}{\cf20 18888},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'tcp port for distrbuted training'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--local_rank'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1  }{\cf9 default}{\cf6 =}{\cf20 0},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'local rank for distributed training'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--set'},{\cf1  }{\cf9 dest}{\cf6 =}{\cf13 'set_cfgs'},{\cf1  }{\cf9 default}{\cf6 =}None,{\cf1  }{\cf9 nargs}{\cf6 =}argparse.REMAINDER,{\cf1 \par
+}{\cf1                         }{\cf9 help}{\cf6 =}{\cf13 'set extra config keys if needed'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--max_waiting_mins'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1  }{\cf9 default}{\cf6 =}{\cf20 30},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'max waiting minutes'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--start_epoch'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1  }{\cf9 default}{\cf6 =}{\cf20 0},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--eval_tag'},{\cf1  }{\cf9 type}{\cf6 =}str,{\cf1  }{\cf9 default}{\cf6 =}{\cf13 'default'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'eval tag for this experiment'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--eval_all'},{\cf1  }{\cf9 action}{\cf6 =}{\cf13 'store_true'},{\cf1  }{\cf9 default}{\cf6 =}False,{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'whether to evaluate all checkpoints'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--ckpt_dir'},{\cf1  }{\cf9 type}{\cf6 =}str,{\cf1  }{\cf9 default}{\cf6 =}None,{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'specify a ckpt directory to be evaluated if needed'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--save_to_file'},{\cf1  }{\cf9 action}{\cf6 =}{\cf13 'store_true'},{\cf1  }{\cf9 default}{\cf6 =}False,{\cf1  }{\cf9 help}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--corruption_eval'},{\cf1  }{\cf9 action}{\cf6 =}{\cf13 'store_true'},{\cf1  }{\cf9 default}{\cf6 =}False,{\cf1  }{\cf9 help}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--corruption_savepath'},{\cf1  }{\cf9 type}{\cf6 =}str,{\cf1  }{\cf9 default}{\cf6 =}{\cf13 '../data/kittiCorrupt'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1 \par
+}{\cf1    }{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 args}{\cf1  }{\cf6 =}{\cf1  }parser.parse_args{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }cfg_from_yaml_file{\cf6 (}args.cfg_file,{\cf1  }cfg{\cf6 )}{\cf1 \par
+}{\cf1     }cfg.TAG{\cf1  }{\cf6 =}{\cf1  }Path{\cf6 (}args.cfg_file{\cf6 )}.stem{\cf1 \par
+}{\cf1     }cfg.EXP_GROUP_PATH{\cf1  }{\cf6 =}{\cf1  }{\cf13 '/'}.join{\cf6 (}args.cfg_file.split{\cf6 (}{\cf13 '/'}{\cf6 )}{\cf6 [}{\cf20 1}:-1{\cf6 ]}{\cf6 )}{\cf1   }#{\cf1  }remove{\cf1  }{\cf13 'cfgs'}{\cf1  }and{\cf1  }{\cf13 'xxxx.yaml'}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }np.random.seed{\cf6 (}{\cf20 1024}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }args.set_cfgs{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1         }cfg_from_list{\cf6 (}args.set_cfgs,{\cf1  }cfg{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }args,{\cf1  }cfg{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }eval_single_ckpt{\cf6 (}model,{\cf1  }test_loader,{\cf1  }args,{\cf1  }eval_output_dir,{\cf1  }logger,{\cf1  }epoch_id,{\cf1  }{\cf9 dist_test}{\cf6 =}False{\cf6 )}:{\cf1 \par
+}{\cf1     }#{\cf1  }load{\cf1  }checkpoint{\cf1 \par
+}{\cf1     }model.load_params_from_file{\cf6 (}{\cf9 filename}{\cf6 =}args.ckpt,{\cf1  }{\cf9 logger}{\cf6 =}logger,{\cf1  }{\cf9 to_cpu}{\cf6 =}dist_test{\cf6 )}{\cf1 \par
+}{\cf1     }model.cuda{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }start{\cf1  }evaluation{\cf1 \par
+}{\cf1     }_,{\cf1  }{\cf9 result_df}{\cf1  }{\cf6 =}{\cf1  }eval_utils.eval_one_epoch{\cf6 (}{\cf1 \par
+}{\cf1         }cfg,{\cf1  }model,{\cf1  }test_loader,{\cf1  }epoch_id,{\cf1  }logger,{\cf1  }{\cf9 dist_test}{\cf6 =}dist_test,{\cf1 \par
+}{\cf1         }{\cf9 result_dir}{\cf6 =}eval_output_dir,{\cf1  }{\cf9 save_to_file}{\cf6 =}args.save_to_file{\cf1 \par
+}{\cf1     }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }result_df{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_no_evaluated_ckpt{\cf6 (}ckpt_dir,{\cf1  }ckpt_record_file,{\cf1  }args{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 ckpt_list}{\cf1  }{\cf6 =}{\cf1  }glob.glob{\cf6 (}os.path.join{\cf6 (}ckpt_dir,{\cf1  }{\cf13 '*checkpoint_epoch_*.pth'}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }ckpt_list.sort{\cf6 (}{\cf9 key}{\cf6 =}os.path.getmtime{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 evaluated_ckpt_list}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}float{\cf6 (}x.strip{\cf6 (}{\cf6 )}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }x{\cf1  }{\cf3\b in}{\cf1  }open{\cf6 (}ckpt_record_file,{\cf1  }{\cf13 'r'}{\cf6 )}.readlines{\cf6 (}{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }cur_ckpt{\cf1  }{\cf3\b in}{\cf1  }ckpt_list:{\cf1 \par
+}{\cf1         }{\cf9 num_list}{\cf1  }{\cf6 =}{\cf1  }re.findall{\cf6 (}{\cf13 'checkpoint_epoch_(.*).pth'},{\cf1  }cur_ckpt{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }num_list.__len__{\cf6 (}{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf3\b continue}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 epoch_id}{\cf1  }{\cf6 =}{\cf1  }num_list{\cf6 [}-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf13 'optim'}{\cf1  }{\cf3\b in}{\cf1  }epoch_id:{\cf1 \par
+}{\cf1             }{\cf3\b continue}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }float{\cf6 (}epoch_id{\cf6 )}{\cf1  }not{\cf1  }{\cf3\b in}{\cf1  }evaluated_ckpt_list{\cf1  }and{\cf1  }int{\cf6 (}float{\cf6 (}epoch_id{\cf6 )}{\cf6 )}{\cf1  }>{\cf6 =}{\cf1  }args.start_epoch:{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }epoch_id,{\cf1  }cur_ckpt{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }-1,{\cf1  }None{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }repeat_eval_ckpt{\cf6 (}model,{\cf1  }test_loader,{\cf1  }args,{\cf1  }eval_output_dir,{\cf1  }logger,{\cf1  }ckpt_dir,{\cf1  }{\cf9 dist_test}{\cf6 =}False{\cf6 )}:{\cf1 \par
+}{\cf1     }#{\cf1  }evaluated{\cf1  }ckpt{\cf1  }record{\cf1 \par
+}{\cf1     }{\cf9 ckpt_record_file}{\cf1  }{\cf6 =}{\cf1  }eval_output_dir{\cf1  }/{\cf1  }{\cf6 (}{\cf13 'eval_list_%s.txt'}{\cf1  }%{\cf1  }cfg.DATA_CONFIG.DATA_SPLIT{\cf6 [}{\cf13 'test'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }with{\cf1  }open{\cf6 (}ckpt_record_file,{\cf1  }{\cf13 'a'}{\cf6 )}:{\cf1 \par
+}{\cf1         }pass{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }tensorboard{\cf1  }log{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }cfg.LOCAL_RANK{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1         }{\cf9 tb_log}{\cf1  }{\cf6 =}{\cf1  }SummaryWriter{\cf6 (}{\cf9 log_dir}{\cf6 =}str{\cf6 (}eval_output_dir{\cf1  }/{\cf1  }{\cf6 (}{\cf13 'tensorboard_%s'}{\cf1  }%{\cf1  }cfg.DATA_CONFIG.DATA_SPLIT{\cf6 [}{\cf13 'test'}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 total_time}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf9 first_eval}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1     }{\cf3\b while}{\cf1  }True:{\cf1 \par
+}{\cf1         }#{\cf1  }check{\cf1  }whether{\cf1  }there{\cf1  }is{\cf1  }checkpoint{\cf1  }which{\cf1  }is{\cf1  }not{\cf1  }evaluated{\cf1 \par
+}{\cf1         }cur_epoch_id,{\cf1  }{\cf9 cur_ckpt}{\cf1  }{\cf6 =}{\cf1  }get_no_evaluated_ckpt{\cf6 (}ckpt_dir,{\cf1  }ckpt_record_file,{\cf1  }args{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf9 cur_epoch_id}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }-1{\cf1  }or{\cf1  }int{\cf6 (}float{\cf6 (}cur_epoch_id{\cf6 )}{\cf6 )}{\cf1  }<{\cf1  }args.start_epoch:{\cf1 \par
+}{\cf1             }{\cf3\b break}{\cf1 \par
+}{\cf1         }{\cf9 total_time}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf9 first_eval}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1 \par
+}{\cf1         }model.load_params_from_file{\cf6 (}{\cf9 filename}{\cf6 =}cur_ckpt,{\cf1  }{\cf9 logger}{\cf6 =}logger,{\cf1  }{\cf9 to_cpu}{\cf6 =}dist_test{\cf6 )}{\cf1 \par
+}{\cf1         }model.cuda{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }start{\cf1  }evaluation{\cf1 \par
+}{\cf1         }{\cf9 cur_result_dir}{\cf1  }{\cf6 =}{\cf1  }eval_output_dir{\cf1  }/{\cf1  }{\cf6 (}{\cf13 'epoch_%s'}{\cf1  }%{\cf1  }cur_epoch_id{\cf6 )}{\cf1  }/{\cf1  }cfg.DATA_CONFIG.DATA_SPLIT{\cf6 [}{\cf13 'test'}{\cf6 ]}{\cf1 \par
+}{\cf1         }tb_dict,{\cf1  }{\cf9 _}{\cf1  }{\cf6 =}{\cf1  }eval_utils.eval_one_epoch{\cf6 (}{\cf1 \par
+}{\cf1             }cfg,{\cf1  }model,{\cf1  }test_loader,{\cf1  }cur_epoch_id,{\cf1  }logger,{\cf1  }{\cf9 dist_test}{\cf6 =}dist_test,{\cf1 \par
+}{\cf1             }{\cf9 result_dir}{\cf6 =}cur_result_dir,{\cf1  }{\cf9 save_to_file}{\cf6 =}args.save_to_file{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }cfg.LOCAL_RANK{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }key,{\cf1  }val{\cf1  }{\cf3\b in}{\cf1  }tb_dict.items{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1                 }tb_log.add_scalar{\cf6 (}key,{\cf1  }val,{\cf1  }cur_epoch_id{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }record{\cf1  }this{\cf1  }epoch{\cf1  }which{\cf1  }has{\cf1  }been{\cf1  }evaluated{\cf1 \par
+}{\cf1         }with{\cf1  }open{\cf6 (}ckpt_record_file,{\cf1  }{\cf13 'a'}{\cf6 )}{\cf1  }as{\cf1  }f:{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf13 '%s'}{\cf1  }%{\cf1  }cur_epoch_id,{\cf1  }{\cf9 file}{\cf6 =}f{\cf6 )}{\cf1 \par
+}{\cf1         }logger.info{\cf6 (}{\cf13 'Epoch %s has been evaluated'}{\cf1  }%{\cf1  }cur_epoch_id{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }main{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }args,{\cf1  }{\cf9 cfg}{\cf1  }{\cf6 =}{\cf1  }parse_config{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }args.launcher{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'none'}:{\cf1 \par
+}{\cf1         }{\cf9 dist_test}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf9 total_gpus}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }total_gpus,{\cf1  }cfg.LOCAL_RANK{\cf1  }{\cf6 =}{\cf1  }getattr{\cf6 (}common_utils,{\cf1  }{\cf13 'init_dist_%s'}{\cf1  }%{\cf1  }args.launcher{\cf6 )}{\cf6 (}{\cf1 \par
+}{\cf1             }args.tcp_port,{\cf1  }args.local_rank,{\cf1  }{\cf9 backend}{\cf6 =}{\cf13 'nccl'}{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 dist_test}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }args.batch_size{\cf1  }is{\cf1  }None:{\cf1 \par
+}{\cf1         }args.batch_size{\cf1  }{\cf6 =}{\cf1  }cfg.OPTIMIZATION.BATCH_SIZE_PER_GPU{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }assert{\cf1  }args.batch_size{\cf1  }%{\cf1  }{\cf9 total_gpus}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0},{\cf1  }{\cf13 'Batch size should match the number of gpus'}{\cf1 \par
+}{\cf1         }args.batch_size{\cf1  }{\cf6 =}{\cf1  }args.batch_size{\cf1  }//{\cf1  }total_gpus{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 output_dir}{\cf1  }{\cf6 =}{\cf1  }cfg.ROOT_DIR{\cf1  }/{\cf1  }{\cf13 'output'}{\cf1  }/{\cf1  }cfg.EXP_GROUP_PATH{\cf1  }/{\cf1  }cfg.TAG{\cf1  }/{\cf1  }args.extra_tag{\cf1 \par
+}{\cf1     }output_dir.mkdir{\cf6 (}{\cf9 parents}{\cf6 =}True,{\cf1  }{\cf9 exist_ok}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 eval_output_dir}{\cf1  }{\cf6 =}{\cf1  }output_dir{\cf1  }/{\cf1  }{\cf13 'eval'}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }not{\cf1  }args.eval_all:{\cf1 \par
+}{\cf1         }{\cf9 num_list}{\cf1  }{\cf6 =}{\cf1  }re.findall{\cf6 (}r{\cf13 '\\d+'},{\cf1  }args.ckpt{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }args.ckpt{\cf1  }is{\cf1  }not{\cf1  }None{\cf1  }{\cf3\b else}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 epoch_id}{\cf1  }{\cf6 =}{\cf1  }num_list{\cf6 [}-1{\cf6 ]}{\cf1  }{\cf3\b if}{\cf1  }num_list.__len__{\cf6 (}{\cf6 )}{\cf1  }>{\cf1  }{\cf20 0}{\cf1  }{\cf3\b else}{\cf1  }{\cf13 'no_number'}{\cf1 \par
+}{\cf1         }{\cf9 eval_output_dir}{\cf1  }{\cf6 =}{\cf1  }eval_output_dir{\cf1  }/{\cf1  }{\cf6 (}{\cf13 'epoch_%s'}{\cf1  }%{\cf1  }epoch_id{\cf6 )}{\cf1  }/{\cf1  }cfg.DATA_CONFIG.DATA_SPLIT{\cf6 [}{\cf13 'test'}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }{\cf9 eval_output_dir}{\cf1  }{\cf6 =}{\cf1  }eval_output_dir{\cf1  }/{\cf1  }{\cf13 'eval_all_default'}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }args.eval_tag{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1         }{\cf9 eval_output_dir}{\cf1  }{\cf6 =}{\cf1  }eval_output_dir{\cf1  }/{\cf1  }args.eval_tag{\cf1 \par
+}{\cf1 \par
+}{\cf1     }eval_output_dir.mkdir{\cf6 (}{\cf9 parents}{\cf6 =}True,{\cf1  }{\cf9 exist_ok}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 log_file}{\cf1  }{\cf6 =}{\cf1  }eval_output_dir{\cf1  }/{\cf1  }{\cf6 (}{\cf13 'log_eval_%s.txt'}{\cf1  }%{\cf1  }datetime.datetime.now{\cf6 (}{\cf6 )}.strftime{\cf6 (}{\cf13 '%Y%m%d-%H%M%S'}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 logger}{\cf1  }{\cf6 =}{\cf1  }common_utils.create_logger{\cf6 (}log_file,{\cf1  }{\cf9 rank}{\cf6 =}cfg.LOCAL_RANK{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }log{\cf1  }to{\cf1  }file{\cf1 \par
+}{\cf1     }logger.info{\cf6 (}{\cf13 '**********************Start logging**********************'}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 gpu_list}{\cf1  }{\cf6 =}{\cf1  }os.environ{\cf6 [}{\cf13 'CUDA_VISIBLE_DEVICES'}{\cf6 ]}{\cf1  }{\cf3\b if}{\cf1  }{\cf13 'CUDA_VISIBLE_DEVICES'}{\cf1  }{\cf3\b in}{\cf1  }os.environ.keys{\cf6 (}{\cf6 )}{\cf1  }{\cf3\b else}{\cf1  }{\cf13 'ALL'}{\cf1 \par
+}{\cf1     }logger.info{\cf6 (}{\cf13 'CUDA_VISIBLE_DEVICES=%s'}{\cf1  }%{\cf1  }gpu_list{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }dist_test:{\cf1 \par
+}{\cf1         }logger.info{\cf6 (}{\cf13 'total_batch_size: %d'}{\cf1  }%{\cf1  }{\cf6 (}total_gpus{\cf1  }*{\cf1  }args.batch_size{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }key,{\cf1  }val{\cf1  }{\cf3\b in}{\cf1  }vars{\cf6 (}args{\cf6 )}.items{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1         }logger.info{\cf6 (}{\cf13 '\{:16\} \{\}'}.format{\cf6 (}key,{\cf1  }val{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }log_config_to_file{\cf6 (}cfg,{\cf1  }{\cf9 logger}{\cf6 =}logger{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 ckpt_dir}{\cf1  }{\cf6 =}{\cf1  }args.ckpt_dir{\cf1  }{\cf3\b if}{\cf1  }args.ckpt_dir{\cf1  }is{\cf1  }not{\cf1  }None{\cf1  }{\cf3\b else}{\cf1  }output_dir{\cf1  }/{\cf1  }{\cf13 'ckpt'}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }test_set,{\cf1  }test_loader,{\cf1  }{\cf9 sampler}{\cf1  }{\cf6 =}{\cf1  }build_dataloader{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 dataset_cfg}{\cf6 =}cfg.DATA_CONFIG,{\cf1 \par
+}{\cf1         }{\cf9 class_names}{\cf6 =}cfg.CLASS_NAMES,{\cf1 \par
+}{\cf1         }{\cf9 batch_size}{\cf6 =}args.batch_size,{\cf1 \par
+}{\cf1         }{\cf9 dist}{\cf6 =}dist_test,{\cf1  }{\cf9 workers}{\cf6 =}args.workers,{\cf1  }{\cf9 logger}{\cf6 =}logger,{\cf1  }{\cf9 training}{\cf6 =}False{\cf1 \par
+}{\cf1     }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 model}{\cf1  }{\cf6 =}{\cf1  }build_network{\cf6 (}{\cf9 model_cfg}{\cf6 =}cfg.MODEL,{\cf1  }{\cf9 num_class}{\cf6 =}len{\cf6 (}cfg.CLASS_NAMES{\cf6 )},{\cf1  }{\cf9 dataset}{\cf6 =}test_set{\cf6 )}{\cf1 \par
+}{\cf1     }with{\cf1  }torch.no_grad{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }args.eval_all:{\cf1 \par
+}{\cf1             }repeat_eval_ckpt{\cf6 (}model,{\cf1  }test_loader,{\cf1  }args,{\cf1  }eval_output_dir,{\cf1  }logger,{\cf1  }ckpt_dir,{\cf1  }{\cf9 dist_test}{\cf6 =}dist_test{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 result_df}{\cf1  }{\cf6 =}{\cf1  }eval_single_ckpt{\cf6 (}model,{\cf1  }test_loader,{\cf1  }args,{\cf1  }eval_output_dir,{\cf1  }logger,{\cf1  }epoch_id,{\cf1  }{\cf9 dist_test}{\cf6 =}dist_test{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }args.corruption_eval:{\cf1 \par
+}{\cf1         }{\cf9 dataset_path}{\cf1  }{\cf6 =}{\cf1  }cfg.DATA_CONFIG.DATA_PATH{\cf1 \par
+}{\cf1         }{\cf9 data_root}{\cf1  }{\cf6 =}{\cf1  }dataset_path.split{\cf6 (}{\cf13 '/'}{\cf6 )}{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }data_root{\cf1  }!{\cf6 =}{\cf1  }{\cf13 'kitti'}:{\cf1 \par
+}{\cf1             }result_df{\cf6 [}{\cf13 'corruption'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }dataset_path.split{\cf6 (}{\cf13 '/'}{\cf6 )}{\cf6 [}-2{\cf6 ]}{\cf1 \par
+}{\cf1             }result_df{\cf6 [}{\cf13 'severity'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }dataset_path.split{\cf6 (}{\cf13 '/'}{\cf6 )}{\cf6 [}-1{\cf6 ]}.split{\cf6 (}{\cf13 '_'}{\cf6 )}{\cf6 [}-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }result_df{\cf6 [}{\cf13 'corruption'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'original'}{\cf1 \par
+}{\cf1             }result_df{\cf6 [}{\cf13 'severity'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf13 '0'}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }{\cf9 file_path}{\cf1  }{\cf6 =}{\cf1  }os.path.join{\cf6 (}args.corruption_savepath,{\cf13 'VirConv_corruption_eval.csv'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 ok}{\cf1  }{\cf6 =}{\cf1  }os.path.isfile{\cf6 (}file_path{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }result_df.to_csv{\cf6 (}{\cf1 \par
+}{\cf1             }file_path,{\cf1 \par
+}{\cf1             }{\cf9 mode}{\cf6 =}{\cf13 'a'}{\cf1  }{\cf3\b if}{\cf1  }ok{\cf1  }{\cf3\b else}{\cf1  }{\cf13 'w'},{\cf1 \par
+}{\cf1             }{\cf9 header}{\cf6 =}not{\cf1  }ok,{\cf1 \par
+}{\cf1             }{\cf9 index}{\cf6 =}False{\cf1 \par
+}{\cf1         }{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf3\b if}{\cf1  }{\cf9 __name__}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 '__main__'}:{\cf1 \par
+}{\cf1     }main{\cf6 (}{\cf6 )}{\cf1 \par
+}}

@@ -1,0 +1,384 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }argparse{\cf1 \par
+}import{\cf1  }os{\cf1 \par
+}{\cf1 \par
+}import{\cf1  }pickle{\cf1 \par
+}import{\cf1  }matplotlib.pyplot{\cf1  }as{\cf1  }plt{\cf1 \par
+}import{\cf1  }numpy{\cf1  }as{\cf1  }np{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 matplotlib.ticker}{\cf1  }import{\cf1  }MultipleLocator{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.datasets.kitti.kitti_object_eval_python.eval}{\cf1  }import{\cf1  }image_box_overlap,{\cf1  }d3_box_overlap{\cf1 \par
+}import{\cf1  }pcdet.datasets.kitti.kitti_object_eval_python.kitti_common{\cf1  }as{\cf1  }kitti{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.config}{\cf1  }import{\cf1  }cfg,{\cf1  }cfg_from_yaml_file{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.datasets}{\cf1  }import{\cf1  }build_dataloader{\cf1 \par
+}import{\cf1  }copy{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }parse_args{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 parser}{\cf1  }{\cf6 =}{\cf1  }argparse.ArgumentParser{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 description}{\cf6 =}{\cf13 'Generate confusion matrix from detection results'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--config'},{\cf1  }{\cf9 default}{\cf6 =}{\cf13 'cfgs/models/kitti/VirConv-L_3class.yaml'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'test config file path'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--prediction_path'},default{\cf6 =}{\cf13 './result.pkl'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'prediction path where test .pkl result'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--save_dir'},{\cf1 \par
+}{\cf1         }{\cf9 default}{\cf6 =}{\cf13 './matrix'},{\cf1 \par
+}{\cf1         }{\cf9 help}{\cf6 =}{\cf13 'directory where confusion matrix will be saved'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--kitti_eval_classes'},{\cf1  }{\cf9 action}{\cf6 =}{\cf13 'store_true'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'show only kitti evaluation classes in the confusion matrix'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--show'},{\cf1  }{\cf9 action}{\cf6 =}{\cf13 'store_true'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'show confusion matrix'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--normalize'},{\cf1  }{\cf9 action}{\cf6 =}{\cf13 'store_true'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'normalize confusion matrix'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--color-theme'},{\cf1 \par
+}{\cf1         }{\cf9 default}{\cf6 =}{\cf13 'Blues'},{\cf1 \par
+}{\cf1         }{\cf9 help}{\cf6 =}{\cf13 'theme of the matrix color map'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--score-thr'},{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}float,{\cf1 \par
+}{\cf1         }{\cf9 default}{\cf6 =}{\cf20 0}.8,{\cf1 \par
+}{\cf1         }{\cf9 help}{\cf6 =}{\cf13 'score threshold to filter detection bboxes'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--tp-iou-thr'},{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}float,{\cf1 \par
+}{\cf1         }{\cf9 default}{\cf6 =}{\cf20 0}.5,{\cf1 \par
+}{\cf1         }{\cf9 help}{\cf6 =}{\cf13 'IoU threshold to be considered as matched'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--dc-iou-thr'},{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}float,{\cf1 \par
+}{\cf1         }{\cf9 default}{\cf6 =}{\cf20 0}.5,{\cf1 \par
+}{\cf1         }{\cf9 help}{\cf6 =}{\cf13 'IoU threshold to filter Dontcare areas'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--title'},{\cf1 \par
+}{\cf1         }{\cf9 default}{\cf6 =}{\cf13 'Confusion Matrix VirConv'},{\cf1 \par
+}{\cf1         }{\cf9 help}{\cf6 =}{\cf13 'title for the confusion matrix image'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--difficulty'},{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}int,{\cf1 \par
+}{\cf1         }{\cf9 default}{\cf6 =}{\cf20 1},{\cf1 \par
+}{\cf1         }{\cf9 help}{\cf6 =}{\cf13 'kitti difficulty level: Easy(0), Medium(1), Hard(2)'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf13 '--iou_type'},{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}int,{\cf1 \par
+}{\cf1         }{\cf9 default}{\cf6 =}{\cf20 3},{\cf1 \par
+}{\cf1         }{\cf9 help}{\cf6 =}{\cf13 'iou 3D or 2D'}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 args}{\cf1  }{\cf6 =}{\cf1  }parser.parse_args{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }args{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }clean_data{\cf6 (}gt,{\cf1  }dt,{\cf1  }difficulty,{\cf1  }dc_iou_thr,{\cf1  }current_classes{\cf6 )}:{\cf1 \par
+}{\cf1     }#{\cf1  }Eliminar{\cf1  }campos{\cf1  }no{\cf1  }necesarios{\cf1 \par
+}{\cf1     }del{\cf1  }gt{\cf6 [}{\cf13 'gt_boxes_lidar'}{\cf6 ]}{\cf1 \par
+}{\cf1     }del{\cf1  }dt{\cf6 [}{\cf13 'frame_id'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }Construir{\cf1  }lista{\cf1  }de{\cf1  }cajas{\cf1  }{\cf13 'DontCare'}{\cf1 \par
+}{\cf1     }{\cf9 dc_boxes}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}box{\cf1  }{\cf3\b for}{\cf1  }name,{\cf1  }box{\cf1  }{\cf3\b in}{\cf1  }zip{\cf6 (}gt{\cf6 [}{\cf13 'name'}{\cf6 ]},{\cf1  }gt{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }{\cf9 name}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'DontCare'}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }#{\cf1  }Filtrar{\cf1  }GTs{\cf1  }v{\u225}lidos{\cf1  }por{\cf1  }clase{\cf1  }y{\cf1  }excluyendo{\cf1  }{\cf13 'DontCare'}{\cf1 \par
+}{\cf1     }{\cf9 gt_valid_classes}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}i{\cf1  }{\cf3\b for}{\cf1  }i,{\cf1  }name{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}gt{\cf6 [}{\cf13 'name'}{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }name{\cf1  }!{\cf6 =}{\cf1  }{\cf13 'DontCare'}{\cf1  }and{\cf1  }name{\cf1  }{\cf3\b in}{\cf1  }current_classes{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 valid_gt}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}key:{\cf1  }np.array{\cf6 (}{\cf6 [}value{\cf6 [}i{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }gt_valid_classes{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }key,{\cf1  }value{\cf1  }{\cf3\b in}{\cf1  }gt.items{\cf6 (}{\cf6 )}{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }Filtrar{\cf1  }detecciones{\cf1  }si{\cf1  }hay{\cf1  }DontCare{\cf1 \par
+}{\cf1     }{\cf9 MIN_HEIGHT}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 40},{\cf1  }{\cf20 25},{\cf1  }{\cf20 25}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }len{\cf6 (}dc_boxes{\cf6 )}{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1         }{\cf9 dt_box}{\cf1  }{\cf6 =}{\cf1  }dt{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 dc_boxes}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}dc_boxes{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 ious}{\cf1  }{\cf6 =}{\cf1  }image_box_overlap{\cf6 (}dt_box,{\cf1  }dc_boxes,{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 valid_dt_ids}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i,{\cf1  }box{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}dt_box{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 height}{\cf1  }{\cf6 =}{\cf1  }abs{\cf6 (}box{\cf6 [}{\cf20 3}{\cf6 ]}{\cf1  }-{\cf1  }box{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }np.all{\cf6 (}ious{\cf6 [}i{\cf6 ]}{\cf1  }<{\cf1  }dc_iou_thr{\cf6 )}{\cf1  }and{\cf1  }height{\cf1  }>{\cf1  }MIN_HEIGHT{\cf6 [}difficulty{\cf6 ]}:{\cf1 \par
+}{\cf1                 }valid_dt_ids.append{\cf6 (}i{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 valid_dt}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}key:{\cf1  }np.array{\cf6 (}{\cf6 [}value{\cf6 [}i{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }valid_dt_ids{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }key,{\cf1  }value{\cf1  }{\cf3\b in}{\cf1  }dt.items{\cf6 (}{\cf6 )}{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }{\cf9 valid_dt}{\cf1  }{\cf6 =}{\cf1  }dt{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }valid_gt,{\cf1  }valid_dt{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }calculate_metrics{\cf6 (}confusion_matrix,{\cf1  }class_names,{\cf1  }save_dir{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 result}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }id{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}class_names{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 tp}{\cf1  }{\cf6 =}{\cf1  }confusion_matrix{\cf6 [}id,{\cf1  }id{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 fp}{\cf1  }{\cf6 =}{\cf1  }confusion_matrix{\cf6 [}-1,{\cf1  }id{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 fn}{\cf1  }{\cf6 =}{\cf1  }confusion_matrix{\cf6 [}id,{\cf1  }-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 f1_scr}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf20 2}{\cf1  }*{\cf1  }tp{\cf6 )}{\cf1  }/{\cf1  }{\cf6 (}{\cf20 2}{\cf1  }*{\cf1  }tp{\cf1  }+{\cf1  }fp{\cf1  }+{\cf1  }fn{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 recall}{\cf1  }{\cf6 =}{\cf1  }tp{\cf1  }/{\cf1  }{\cf6 (}tp{\cf1  }+{\cf1  }fn{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 sens}{\cf1  }{\cf6 =}{\cf1  }tp{\cf1  }/{\cf1  }{\cf6 (}tp{\cf1  }+{\cf1  }fn{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }result.append{\cf6 (}f{\cf13 '**************\{class_names[id]\}**************'}{\cf6 )}{\cf1 \par
+}{\cf1         }result.append{\cf6 (}f{\cf13 'f1 score: \{f1_scr\}'}{\cf6 )}{\cf1 \par
+}{\cf1         }result.append{\cf6 (}f{\cf13 'recall: \{recall\}'}{\cf6 )}{\cf1 \par
+}{\cf1         }result.append{\cf6 (}f{\cf13 'sensitivity: \{sens\}'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }with{\cf1  }open{\cf6 (}f{\cf13 "\{save_dir\}/metricas.txt"},{\cf1  }{\cf13 "w"}{\cf6 )}{\cf1  }as{\cf1  }f:{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }lin{\cf1  }{\cf3\b in}{\cf1  }result:{\cf1 \par
+}{\cf1             }f.write{\cf6 (}lin{\cf1  }+{\cf1  }{\cf13 "\\n"}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }calculate_confusion_matrix{\cf6 (}dataset,{\cf1 \par
+}{\cf1                                }results,{\cf1 \par
+}{\cf1                                }class_names,{\cf1 \par
+}{\cf1                                }difficulty,{\cf1 \par
+}{\cf1                                }score_thr,{\cf1 \par
+}{\cf1                                }tp_iou_thr,{\cf1 \par
+}{\cf1                                }dc_iou_thr,{\cf1 \par
+}{\cf1                                }iou_type{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf13 Calculate the confusion matrix.}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }Args:{\cf1 \par
+}{\cf1         }dataset{\cf1  }{\cf6 (}Dataset{\cf6 )}:{\cf1  }Test{\cf1  }or{\cf1  }val{\cf1  }dataset.{\cf1 \par
+}{\cf1         }results{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }A{\cf1  }dictionary{\cf1  }of{\cf1  }detection{\cf1  }results{\cf1  }{\cf3\b in}{\cf1  }each{\cf1  }image.{\cf1 \par
+}{\cf1         }score_thr{\cf1  }{\cf6 (}float|optional{\cf6 )}:{\cf1  }Score{\cf1  }threshold{\cf1  }to{\cf1  }filter{\cf1  }bboxes.{\cf1 \par
+}{\cf1             }Default:{\cf1  }{\cf20 0}.{\cf1 \par
+}{\cf1         }tp_iou_thr{\cf1  }{\cf6 (}float|optional{\cf6 )}:{\cf1  }IoU{\cf1  }threshold{\cf1  }to{\cf1  }be{\cf1  }considered{\cf1  }as{\cf1  }matched.{\cf1 \par
+}{\cf1             }Default:{\cf1  }{\cf20 0}.5.{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 num_classes}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}class_names{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 confusion_matrix}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf9 shape}{\cf6 =}{\cf6 [}num_classes{\cf1  }+{\cf1  }{\cf20 1},{\cf1  }num_classes{\cf1  }+{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }assert{\cf1  }len{\cf6 (}dataset{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }len{\cf6 (}results{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }idx,{\cf1  }per_img_res{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}results{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 gts}{\cf1  }{\cf6 =}{\cf1  }dataset.kitti_infos{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf13 'annos'}{\cf6 ]}{\cf1 \par
+}{\cf1         }gts,{\cf1  }{\cf9 det}{\cf6 =}{\cf1  }clean_data{\cf6 (}gts,per_img_res,{\cf1  }difficulty,{\cf1  }dc_iou_thr,{\cf1  }class_names{\cf6 )}{\cf1 \par
+}{\cf1         }analyze_per_img_dets{\cf6 (}confusion_matrix,{\cf1  }gts,{\cf1  }det,{\cf1  }difficulty,{\cf1  }score_thr,{\cf1 \par
+}{\cf1                              }tp_iou_thr,{\cf1  }iou_type{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }confusion_matrix{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }analyze_per_img_dets{\cf6 (}confusion_matrix,{\cf1 \par
+}{\cf1                          }gts,{\cf1 \par
+}{\cf1                          }dt_unsorted,{\cf1 \par
+}{\cf1                          }difficulty,{\cf1 \par
+}{\cf1                          }score_thr,{\cf1 \par
+}{\cf1                          }tp_iou_thr,{\cf1 \par
+}{\cf1                          }iou_type{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 class_to_index}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf13 'Pedestrian'}:{\cf1  }{\cf20 0},{\cf1  }{\cf13 'Cyclist'}:{\cf1  }{\cf20 1},{\cf1  }{\cf13 'Car'}:{\cf1  }{\cf20 2},{\cf1  }{\cf13 'Van'}:{\cf1  }{\cf20 3},{\cf1  }{\cf13 'Truck'}:{\cf1  }{\cf20 4},{\cf1 \par
+}{\cf1                       }{\cf13 'Person_sitting'}:{\cf1  }{\cf20 5},{\cf1  }{\cf13 'Tram'}:{\cf1  }{\cf20 6},{\cf1  }{\cf13 'Misc'}:{\cf1  }{\cf20 7}{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }Obtener{\cf1  }los{\cf1  }{\u237}ndices{\cf1  }ordenados{\cf1  }por{\cf1  }score{\cf1  }descendente{\cf1 \par
+}{\cf1     }{\cf9 sorted_inds}{\cf1  }{\cf6 =}{\cf1  }np.argsort{\cf6 (}-dt_unsorted{\cf6 [}{\cf13 'score'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }Reordenar{\cf1  }todos{\cf1  }los{\cf1  }arrays{\cf1  }del{\cf1  }dict{\cf1  }usando{\cf1  }esos{\cf1  }{\u237}ndices{\cf1 \par
+}{\cf1     }{\cf9 dt}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1         }k:{\cf1  }v{\cf6 [}sorted_inds{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }k,{\cf1  }v{\cf1  }{\cf3\b in}{\cf1  }dt_unsorted.items{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf9 det_labels}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}class_to_index{\cf6 [}label{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }label{\cf1  }{\cf3\b in}{\cf1  }dt{\cf6 [}{\cf13 'name'}{\cf6 ]}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 gt_labels}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}class_to_index{\cf6 [}label{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }label{\cf1  }{\cf3\b in}{\cf1  }gts{\cf6 [}{\cf13 'name'}{\cf6 ]}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 gt_difficulty}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}gts{\cf6 [}{\cf13 'difficulty'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }Caso{\cf1  }sin{\cf1  }detecciones:{\cf1  }solo{\cf1  }FNs{\cf1  }para{\cf1  }los{\cf1  }GTs{\cf1  }v{\u225}lidos{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }len{\cf6 (}dt.get{\cf6 (}{\cf13 'name'},{\cf1  }{\cf6 [}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }j{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}gt_labels{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }gt_difficulty{\cf6 [}j{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }difficulty:{\cf1 \par
+}{\cf1                 }{\cf9 gt_label}{\cf1  }{\cf6 =}{\cf1  }gt_labels{\cf6 [}j{\cf6 ]}{\cf1 \par
+}{\cf1                 }confusion_matrix{\cf6 [}gt_label,{\cf1  }-1{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }M{\u225}scara{\cf1  }de{\cf1  }GTs{\cf1  }v{\u225}lidos{\cf1  }seg{\u250}n{\cf1  }dificultad{\cf1 \par
+}{\cf1     }{\cf9 valid_gt_mask}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf9 gt_difficulty}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }difficulty{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 assigned_gt}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}len{\cf6 (}gt_labels{\cf6 )},{\cf1  }{\cf9 dtype}{\cf6 =}bool{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }{\cf9 iou_type}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 2}:{\cf1 \par
+}{\cf1         }{\cf9 gt_bboxes}{\cf1  }{\cf6 =}{\cf1  }gts{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 dt_bboxes}{\cf1  }{\cf6 =}{\cf1  }dt{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 ious}{\cf1  }{\cf6 =}{\cf1  }image_box_overlap{\cf6 (}dt_bboxes,{\cf1  }gt_bboxes{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b elif}{\cf1  }{\cf9 iou_type}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 3}:{\cf1 \par
+}{\cf1         }{\cf9 gt_bboxes}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}gts{\cf6 [}{\cf13 'location'}{\cf6 ]},{\cf1  }gts{\cf6 [}{\cf13 'dimensions'}{\cf6 ]},{\cf1  }gts{\cf6 [}{\cf13 'rotation_y'}{\cf6 ]}{\cf6 [}...,{\cf1  }np.newaxis{\cf6 ]}{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 dt_bboxes}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}dt{\cf6 [}{\cf13 'location'}{\cf6 ]},{\cf1  }dt{\cf6 [}{\cf13 'dimensions'}{\cf6 ]},{\cf1  }dt{\cf6 [}{\cf13 'rotation_y'}{\cf6 ]}{\cf6 [}...,{\cf1  }np.newaxis{\cf6 ]}{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 ious}{\cf1  }{\cf6 =}{\cf1  }d3_box_overlap{\cf6 (}dt_bboxes,{\cf1  }gt_bboxes{\cf6 )}.astype{\cf6 (}np.float64{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }raise{\cf1  }ValueError{\cf6 (}{\cf13 "IoU type not supported"}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i,{\cf1  }score{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}dt{\cf6 [}{\cf13 'score'}{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }score{\cf1  }<{\cf1  }score_thr:{\cf1 \par
+}{\cf1             }{\cf3\b continue}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 det_label}{\cf1  }{\cf6 =}{\cf1  }det_labels{\cf6 [}i{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 best_iou}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf9 best_gt_idx}{\cf1  }{\cf6 =}{\cf1  }-1{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }j{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}gt_labels{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }assigned_gt{\cf6 [}j{\cf6 ]}:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 iou}{\cf1  }{\cf6 =}{\cf1  }ious{\cf6 [}i,{\cf1  }j{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }iou{\cf1  }>{\cf1  }best_iou:{\cf1 \par
+}{\cf1                 }{\cf9 best_iou}{\cf1  }{\cf6 =}{\cf1  }iou{\cf1 \par
+}{\cf1                 }{\cf9 best_gt_idx}{\cf1  }{\cf6 =}{\cf1  }j{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }Si{\cf1  }hay{\cf1  }match{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }best_iou{\cf1  }>{\cf6 =}{\cf1  }tp_iou_thr{\cf1  }and{\cf1  }best_gt_idx{\cf1  }>{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }valid_gt_mask{\cf6 [}best_gt_idx{\cf6 ]}:{\cf1 \par
+}{\cf1                 }#{\cf1  }GT{\cf1  }es{\cf1  }de{\cf1  }la{\cf1  }dificultad{\cf1  }correcta{\cf1  }{\u8594}{\cf1  }asignar{\cf1 \par
+}{\cf1                 }assigned_gt{\cf6 [}best_gt_idx{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1                 }{\cf9 gt_label}{\cf1  }{\cf6 =}{\cf1  }gt_labels{\cf6 [}best_gt_idx{\cf6 ]}{\cf1 \par
+}{\cf1                 }confusion_matrix{\cf6 [}gt_label,{\cf1  }det_label{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }#{\cf1  }El{\cf1  }{\u250}nico{\cf1  }match{\cf1  }es{\cf1  }con{\cf1  }GT{\cf1  }inv{\u225}lido{\cf1  }{\u8594}{\cf1  }ignorar{\cf1  }la{\cf1  }detecci{\u243}n{\cf1  }{\cf6 (}ni{\cf1  }FP,{\cf1  }ni{\cf1  }TP{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }#{\cf1  }No{\cf1  }hay{\cf1  }ning{\u250}n{\cf1  }match{\cf1  }suficiente{\cf1  }con{\cf1  }ning{\u250}n{\cf1  }GT{\cf1  }{\u8594}{\cf1  }FP{\cf1 \par
+}{\cf1             }confusion_matrix{\cf6 [}-1,{\cf1  }det_label{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }A{\u241}adir{\cf1  }FNs{\cf1  }{\cf6 (}GTs{\cf1  }v{\u225}lidos{\cf1  }no{\cf1  }asignados{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }j{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}gt_labels{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }valid_gt_mask{\cf6 [}j{\cf6 ]}{\cf1  }and{\cf1  }not{\cf1  }assigned_gt{\cf6 [}j{\cf6 ]}:{\cf1 \par
+}{\cf1             }{\cf9 gt_label}{\cf1  }{\cf6 =}{\cf1  }gt_labels{\cf6 [}j{\cf6 ]}{\cf1 \par
+}{\cf1             }confusion_matrix{\cf6 [}gt_label,{\cf1  }-1{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }plot_confusion_matrix{\cf6 (}confusion_matrix,{\cf1 \par
+}{\cf1                           }kitti_eval_classes,{\cf1 \par
+}{\cf1                           }difficulty,{\cf1 \par
+}{\cf1                           }score_thr,{\cf1 \par
+}{\cf1                           }tp_iou_thr,{\cf1 \par
+}{\cf1                           }iou_type,{\cf1 \par
+}{\cf1                           }{\cf9 save_dir}{\cf6 =}None,{\cf1 \par
+}{\cf1                           }{\cf9 show}{\cf6 =}False,{\cf1 \par
+}{\cf1                           }{\cf9 title}{\cf6 =}{\cf13 'Confusion Matrix'},{\cf1 \par
+}{\cf1                           }{\cf9 color_theme}{\cf6 =}{\cf13 'Blues'},{\cf1 \par
+}{\cf1                           }{\cf9 normalize}{\cf6 =}False{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf13 Draw confusion matrix with matplotlib.}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }Args:{\cf1 \par
+}{\cf1         }confusion_matrix{\cf1  }{\cf6 (}ndarray{\cf6 )}:{\cf1  }The{\cf1  }confusion{\cf1  }matrix.{\cf1 \par
+}{\cf1         }labels{\cf1  }{\cf6 (}list{\cf6 [}str{\cf6 ]}{\cf6 )}:{\cf1  }List{\cf1  }of{\cf1  }class{\cf1  }names.{\cf1 \par
+}{\cf1         }save_dir{\cf1  }{\cf6 (}str|optional{\cf6 )}:{\cf1  }If{\cf1  }set,{\cf1  }save{\cf1  }the{\cf1  }confusion{\cf1  }matrix{\cf1  }plot{\cf1  }to{\cf1  }the{\cf1 \par
+}{\cf1             }given{\cf1  }path.{\cf1  }Default:{\cf1  }None.{\cf1 \par
+}{\cf1         }show{\cf1  }{\cf6 (}bool{\cf6 )}:{\cf1  }Whether{\cf1  }to{\cf1  }show{\cf1  }the{\cf1  }plot.{\cf1  }Default:{\cf1  }True.{\cf1 \par
+}{\cf1         }title{\cf1  }{\cf6 (}str{\cf6 )}:{\cf1  }Title{\cf1  }of{\cf1  }the{\cf1  }plot.{\cf1  }Default:{\cf1  }{\cf13 `}Confusion{\cf1  }Matrix{\cf13 `}.{\cf1 \par
+}{\cf1         }color_theme{\cf1  }{\cf6 (}str{\cf6 )}:{\cf1  }Theme{\cf1  }of{\cf1  }the{\cf1  }matrix{\cf1  }color{\cf1  }map.{\cf1  }Default:{\cf1  }{\cf13 `}Blues{\cf13 `}.{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1     }{\cf9 class_to_index}{\cf1  }{\cf6 =}{\cf6 \{}{\cf13 'Pedestrian'}:0,{\cf1  }{\cf13 'Cyclist'}:1,{\cf1  }{\cf13 'Car'}:2,{\cf1  }{\cf13 'Van'}:3,{\cf1  }{\cf13 'Truck'}:4,{\cf1 \par
+}{\cf1                     }{\cf13 'Person_sitting'}:5,{\cf1  }{\cf13 'Tram'}:6,{\cf1  }{\cf13 'Misc'}:7{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }not{\cf1  }kitti_eval_classes:{\cf1 \par
+}{\cf1         }{\cf9 used_classes}{\cf1  }{\cf6 =}{\cf1   }{\cf6 [}{\cf13 'Pedestrian'},{\cf1  }{\cf13 'Cyclist'},{\cf1  }{\cf13 'Car'},{\cf1  }{\cf13 'Van'},{\cf1  }{\cf13 'Truck'},{\cf1 \par
+}{\cf1                     }{\cf13 'Person_sitting'},{\cf1  }{\cf13 'Tram'},{\cf1  }{\cf13 'Misc'}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }{\cf9 used_classes}{\cf1  }{\cf6 =}{\cf1   }{\cf6 [}{\cf13 'Pedestrian'},{\cf1  }{\cf13 'Cyclist'},{\cf1  }{\cf13 'Car'}{\cf6 ]}{\cf1 \par
+}{\cf1         }confusion_matrix{\cf6 [}-1,{\cf1  }:{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }confusion_matrix{\cf6 [}{\cf6 [}{\cf20 3},4,5,6,7{\cf6 ]},{\cf1  }:{\cf6 ]}.sum{\cf6 (}{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1   }{\cf1 \par
+}{\cf1         }confusion_matrix{\cf6 [}-1,2{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }confusion_matrix{\cf6 [}{\cf20 3},2{\cf6 ]}{\cf1  }#van{\cf1  }confundido{\cf1  }por{\cf1  }coche{\cf1 \par
+}{\cf1         }confusion_matrix{\cf6 [}-1,0{\cf6 ]}{\cf1  }-{\cf6 =}{\cf1  }confusion_matrix{\cf6 [}{\cf20 5},0{\cf6 ]}{\cf1  }#person{\cf1  }sitting{\cf1  }confundido{\cf1  }por{\cf1  }pedestrian{\cf1 \par
+}{\cf1         }confusion_matrix{\cf6 [}-1,-1{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf9 confusion_matrix}{\cf1  }{\cf6 =}{\cf1  }np.delete{\cf6 (}confusion_matrix,{\cf1  }{\cf6 [}{\cf20 3},4,5,6,7{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1         }{\cf9 confusion_matrix}{\cf1  }{\cf6 =}{\cf1  }np.delete{\cf6 (}confusion_matrix,{\cf1  }{\cf6 [}{\cf20 3},4,5,6,7{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }normalize:{\cf1 \par
+}{\cf1         }{\cf9 per_label_sums}{\cf1  }{\cf6 =}{\cf1  }confusion_matrix.sum{\cf6 (}{\cf9 axis}{\cf6 =}{\cf20 1}{\cf6 )}{\cf6 [}:,{\cf1  }np.newaxis{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 confusion_matrix}{\cf1  }{\cf6 =}{\cf1  }confusion_matrix.astype{\cf6 (}np.float32{\cf6 )}{\cf1  }/{\cf1  }per_label_sums{\cf1  }*{\cf1  }{\cf20 100}{\cf1 \par
+}{\cf1 \par
+}{\cf1    }{\cf1 \par
+}{\cf1     }{\cf9 difficulty_levels}{\cf1   }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'Easy'},{\cf13 'Moderate'},{\cf13 'Hard'},{\cf13 'Unknown'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }used_classes.append{\cf6 (}{\cf13 'Background'}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 num_classes}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}used_classes{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }fig,{\cf1  }{\cf9 ax}{\cf1  }{\cf6 =}{\cf1  }plt.subplots{\cf6 (}{\cf9 figsize}{\cf6 =}{\cf6 (}num_classes{\cf1  }*{\cf1  }{\cf20 1}.5,{\cf1  }num_classes{\cf1  }*{\cf1  }{\cf20 1}.5{\cf6 )}{\cf1  }{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1     }{\cf9 cmap}{\cf1  }{\cf6 =}{\cf1  }plt.get_cmap{\cf6 (}color_theme{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 im}{\cf1  }{\cf6 =}{\cf1  }ax.imshow{\cf6 (}confusion_matrix,{\cf1  }{\cf9 cmap}{\cf6 =}cmap{\cf6 )}{\cf1 \par
+}{\cf1     }plt.colorbar{\cf6 (}{\cf9 mappable}{\cf6 =}im,{\cf1  }{\cf9 ax}{\cf6 =}ax{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }plt.suptitle{\cf6 (}title{\cf1  }+{\cf1  }f{\cf13 ' \{iou_type\}D'},{\cf1  }{\cf9 fontsize}{\cf6 =}{\cf20 12},{\cf1  }{\cf9 ha}{\cf6 =}{\cf13 'center'},{\cf1  }{\cf9 weight}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'extra bold'}{\cf6 )}{\cf1 \par
+}{\cf1     }ax.set_title{\cf6 (}f{\cf13 'Difficulty level \{difficulty_levels[difficulty]\}'},{\cf1  }{\cf9 size}{\cf6 =}{\cf20 12},{\cf1  }{\cf9 style}{\cf1  }{\cf6 =}{\cf1  }{\cf13 "italic"}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 label_font}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf13 'size'}:{\cf1  }{\cf20 10}{\cf6 \}}{\cf1 \par
+}{\cf1     }plt.ylabel{\cf6 (}{\cf13 'Ground Truth Label'},{\cf1  }{\cf9 fontdict}{\cf6 =}label_font{\cf6 )}{\cf1 \par
+}{\cf1     }plt.xlabel{\cf6 (}{\cf13 'Prediction Label'},{\cf1  }{\cf9 fontdict}{\cf6 =}label_font{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }draw{\cf1  }locator{\cf1 \par
+}{\cf1     }{\cf9 xmajor_locator}{\cf1  }{\cf6 =}{\cf1  }MultipleLocator{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 xminor_locator}{\cf1  }{\cf6 =}{\cf1  }MultipleLocator{\cf6 (}{\cf20 0}.5{\cf6 )}{\cf1 \par
+}{\cf1     }ax.xaxis.set_major_locator{\cf6 (}xmajor_locator{\cf6 )}{\cf1 \par
+}{\cf1     }ax.xaxis.set_minor_locator{\cf6 (}xminor_locator{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 ymajor_locator}{\cf1  }{\cf6 =}{\cf1  }MultipleLocator{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 yminor_locator}{\cf1  }{\cf6 =}{\cf1  }MultipleLocator{\cf6 (}{\cf20 0}.5{\cf6 )}{\cf1 \par
+}{\cf1     }ax.yaxis.set_major_locator{\cf6 (}ymajor_locator{\cf6 )}{\cf1 \par
+}{\cf1     }ax.yaxis.set_minor_locator{\cf6 (}yminor_locator{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }draw{\cf1  }grid{\cf1 \par
+}{\cf1     }ax.grid{\cf6 (}True,{\cf1  }{\cf9 which}{\cf6 =}{\cf13 'minor'},{\cf1  }{\cf9 linestyle}{\cf6 =}{\cf13 '-'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }draw{\cf1  }label{\cf1 \par
+}{\cf1     }ax.set_xticks{\cf6 (}np.arange{\cf6 (}num_classes{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }ax.set_yticks{\cf6 (}np.arange{\cf6 (}num_classes{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }ax.set_xticklabels{\cf6 (}used_classes{\cf6 )}{\cf1 \par
+}{\cf1     }ax.set_yticklabels{\cf6 (}used_classes{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }ax.tick_params{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 axis}{\cf6 =}{\cf13 'x'},{\cf1  }{\cf9 bottom}{\cf6 =}False,{\cf1  }{\cf9 top}{\cf6 =}True,{\cf1  }{\cf9 labelbottom}{\cf6 =}False,{\cf1  }{\cf9 labeltop}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1     }plt.setp{\cf6 (}{\cf1 \par
+}{\cf1         }ax.get_xticklabels{\cf6 (}{\cf6 )},{\cf1  }{\cf9 rotation}{\cf6 =}{\cf20 45},{\cf1  }{\cf9 ha}{\cf6 =}{\cf13 'left'},{\cf1  }{\cf9 rotation_mode}{\cf6 =}{\cf13 'anchor'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 threshold}{\cf1  }{\cf6 =}{\cf1  }np.max{\cf6 (}confusion_matrix{\cf6 )}{\cf1  }/{\cf1  }{\cf20 2}{\cf1 \par
+}{\cf1     }#{\cf1  }draw{\cf1  }confution{\cf1  }matrix{\cf1  }value{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}num_classes{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }j{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}num_classes{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }normalize:{\cf1 \par
+}{\cf1                 }{\cf9 text}{\cf1  }{\cf6 =}{\cf1  }{\cf13 '\{:.2f\}%'}.format{\cf6 (}{\cf1 \par
+}{\cf1                     }float{\cf6 (}confusion_matrix{\cf6 [}{\cf1 \par
+}{\cf1                         }i,{\cf1 \par
+}{\cf1                         }j{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }not{\cf1  }np.isnan{\cf6 (}confusion_matrix{\cf6 [}i,{\cf1  }j{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b else}{\cf1  }-1{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1  }{\cf1 \par
+}{\cf1                 }{\cf9 text}{\cf1  }{\cf6 =}{\cf1  }{\cf13 '\{\}'}.format{\cf6 (}{\cf1 \par
+}{\cf1                     }int{\cf6 (}confusion_matrix{\cf6 [}{\cf1 \par
+}{\cf1                         }i,{\cf1 \par
+}{\cf1                         }j{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }not{\cf1  }np.isnan{\cf6 (}confusion_matrix{\cf6 [}i,{\cf1  }j{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b else}{\cf1  }-1{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf1 \par
+}{\cf1             }{\cf9 color}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'white'}{\cf1  }{\cf3\b if}{\cf1  }confusion_matrix{\cf6 [}i,j{\cf6 ]}{\cf1  }>{\cf1  }threshold{\cf1  }{\cf3\b else}{\cf1  }{\cf13 'black'}{\cf1 \par
+}{\cf1             }ax.text{\cf6 (}j,{\cf1  }i,{\cf1  }text,{\cf1  }{\cf9 ha}{\cf6 =}{\cf13 'center'},{\cf1  }{\cf9 va}{\cf6 =}{\cf13 'center'},{\cf1  }{\cf9 color}{\cf6 =}color,{\cf1  }{\cf9 size}{\cf6 =}{\cf20 7}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }ax.set_ylim{\cf6 (}len{\cf6 (}confusion_matrix{\cf6 )}{\cf1  }-{\cf1  }{\cf20 0}.5,{\cf1  }-0.5{\cf6 )}{\cf1   }#{\cf1  }matplotlib>3.1.1{\cf1 \par
+}{\cf1 \par
+}{\cf1     }fig.tight_layout{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }save_dir{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1         }plt.savefig{\cf6 (}{\cf1 \par
+}{\cf1             }os.path.join{\cf6 (}save_dir,{\cf1  }f{\cf13 'confusion_matrix_level\{difficulty\}_tp-th\{tp_iou_thr\}_scr-th\{score_thr\}_\{iou_type\}D.png'}{\cf6 )},{\cf1  }{\cf9 format}{\cf6 =}{\cf13 'png'}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }show:{\cf1 \par
+}{\cf1         }plt.show{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }main{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 args}{\cf1  }{\cf6 =}{\cf1  }parse_args{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }cfg_from_yaml_file{\cf6 (}args.config,{\cf1  }cfg{\cf6 )}{\cf1 \par
+}{\cf1  }{\cf1 \par
+}{\cf1     }with{\cf1  }open{\cf6 (}args.prediction_path,{\cf1  }{\cf13 'rb'}{\cf6 )}{\cf1  }as{\cf1  }file:{\cf1 \par
+}{\cf1         }{\cf9 results}{\cf1  }{\cf6 =}{\cf1  }pickle.load{\cf6 (}file{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }not{\cf1  }os.path.exists{\cf6 (}args.save_dir{\cf6 )}:{\cf1 \par
+}{\cf1         }os.makedirs{\cf6 (}args.save_dir{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }val_set,{\cf1  }val_loader,{\cf1  }{\cf9 sampler}{\cf1  }{\cf6 =}{\cf1  }build_dataloader{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 dataset_cfg}{\cf6 =}cfg.DATA_CONFIG,{\cf1 \par
+}{\cf1     }{\cf9 class_names}{\cf6 =}cfg.CLASS_NAMES,{\cf1 \par
+}{\cf1     }{\cf9 batch_size}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 training}{\cf6 =}False,{\cf1  }{\cf9 dist}{\cf6 =}False,{\cf1  }{\cf9 workers}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 class_names}{\cf1  }{\cf6 =}{\cf1   }{\cf6 [}{\cf13 'Pedestrian'},{\cf1  }{\cf13 'Cyclist'},{\cf1  }{\cf13 'Car'},{\cf1  }{\cf13 'Van'},{\cf1  }{\cf13 'Truck'},{\cf1 \par
+}{\cf1                     }{\cf13 'Person_sitting'},{\cf1  }{\cf13 'Tram'},{\cf1  }{\cf13 'Misc'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 confusion_matrix}{\cf1  }{\cf6 =}{\cf1  }calculate_confusion_matrix{\cf6 (}val_set,{\cf1 \par
+}{\cf1                                                   }results,{\cf1 \par
+}{\cf1                                                   }class_names,{\cf1 \par
+}{\cf1                                                   }args.difficulty,{\cf1 \par
+}{\cf1                                                   }args.score_thr,{\cf1 \par
+}{\cf1                                                   }args.tp_iou_thr,{\cf1 \par
+}{\cf1                                                   }args.dc_iou_thr,{\cf1 \par
+}{\cf1                                                   }args.iou_type{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }plot_confusion_matrix{\cf6 (}confusion_matrix,{\cf1  }{\cf1 \par
+}{\cf1                            }args.kitti_eval_classes,{\cf1 \par
+}{\cf1                            }args.difficulty,{\cf1 \par
+}{\cf1                            }args.score_thr,{\cf1 \par
+}{\cf1                            }args.tp_iou_thr,{\cf1 \par
+}{\cf1                            }args.iou_type,{\cf1 \par
+}{\cf1                            }args.save_dir,{\cf1 \par
+}{\cf1                            }args.show,{\cf1 \par
+}{\cf1                            }args.title,{\cf1  }{\cf1 \par
+}{\cf1                            }args.color_theme,{\cf1 \par
+}{\cf1                            }args.normalize{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }args.kitti_eval_classes:{\cf1 \par
+}{\cf1         }calculate_metrics{\cf6 (}confusion_matrix,{\cf1  }{\cf6 [}{\cf13 'Pedestrian'},{\cf1  }{\cf13 'Cyclist'},{\cf1  }{\cf13 'Car'}{\cf6 ]},{\cf1  }args.save_dir{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf3\b if}{\cf1  }{\cf9 __name__}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 '__main__'}:{\cf1 \par
+}{\cf1     }main{\cf6 (}{\cf6 )}{\cf1 \par
+}}

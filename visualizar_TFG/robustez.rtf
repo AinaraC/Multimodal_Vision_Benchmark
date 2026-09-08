@@ -1,0 +1,184 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }pandas{\cf1  }as{\cf1  }pd{\cf1 \par
+}import{\cf1  }matplotlib.pyplot{\cf1  }as{\cf1  }plt{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf9 modelos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 "virconv"},{\cf1  }{\cf13 "mvxnet"},{\cf1  }{\cf13 "bevfusion"}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf9 corrupciones}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 "darkness"},{\cf1  }{\cf13 "sunlight"},{\cf1  }{\cf13 "snow"},{\cf13 "fog"},{\cf1  }{\cf13 "rain"}{\cf6 ]}{\cf1 \par
+}{\cf9 traducir_c}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf13 "darkness"}:{\cf1  }{\cf13 "noche"},{\cf1  }{\cf13 "sunlight"}:{\cf1  }{\cf13 "sol intenso"},{\cf1  }{\cf13 "snow"}:{\cf1  }{\cf13 "nieve"},{\cf13 "fog"}:{\cf1  }{\cf13 "niebla"},{\cf1  }{\cf13 "rain"}:{\cf1  }{\cf13 "lluvia"}{\cf6 \}}{\cf1 \par
+}{\cf9 traducir_cls}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf13 "Car"}:{\cf13 "Coche"},{\cf13 "Pedestrian"}:{\cf13 "Peat{\u243}n"},{\cf1  }{\cf13 "Cyclist"}:{\cf1  }{\cf13 "Ciclista"}{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf9 metrica}{\cf1  }{\cf6 =}{\cf1  }{\cf13 "3d"}{\cf1 \par
+}{\cf1 \par
+}{\cf9 clase}{\cf1  }{\cf6 =}{\cf1  }{\cf13 "Cyclist"}{\cf1 \par
+}{\cf1 \par
+}{\cf9 dificultad}{\cf1  }{\cf6 =}{\cf1  }{\cf13 "moderate"}{\cf1   }#{\cf1  }SIEMPRE{\cf1 \par
+}{\cf1 \par
+}{\cf9 resultados}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf3\b for}{\cf1  }modelo{\cf1  }{\cf3\b in}{\cf1  }modelos:{\cf1 \par
+}{\cf1     }#{\cf1  }Leer{\cf1  }CSV{\cf1  }solo{\cf1  }una{\cf1  }vez{\cf1  }por{\cf1  }modelo{\cf1 \par
+}{\cf1     }{\cf9 df}{\cf1  }{\cf6 =}{\cf1  }pd.read_csv{\cf6 (}f{\cf13 "\{modelo\}/\{modelo\}_corruption_eval.csv"}{\cf6 )}{\cf1     }{\cf1 \par
+}{\cf1 \par
+}{\cf1     }#{\cf1  }Filtrar{\cf1  }condiciones{\cf1 \par
+}{\cf1     }{\cf9 df_filtrado}{\cf1  }{\cf6 =}{\cf1  }df{\cf6 [}{\cf1 \par
+}{\cf1         }{\cf6 (}df{\cf6 [}{\cf13 "metric"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }metrica{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1         }{\cf6 (}df{\cf6 [}{\cf13 "difficulty"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }dificultad{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1         }{\cf6 (}df{\cf6 [}{\cf13 "class"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }clase{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1         }{\cf6 (}df{\cf6 [}{\cf13 "corruption"}{\cf6 ]}.isin{\cf6 (}{\cf6 [}{\cf13 "darkness"},{\cf1  }{\cf13 "sunlight"},{\cf1  }{\cf13 "snow"},{\cf13 "fog"},{\cf1  }{\cf13 "rain"},{\cf1  }{\cf13 "original"}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf6 ]}.copy{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }df_filtrado{\cf6 [}{\cf1  }{\cf13 "model"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }modelo{\cf1  }{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }resultados.append{\cf6 (}df_filtrado{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Concatenar todo}{\cf1 \par
+}{\cf9 df_resultado}{\cf1  }{\cf6 =}{\cf1  }pd.concat{\cf6 (}resultados,{\cf1  }{\cf9 ignore_index}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i ######################## TODO EL RANGO EVOLUCION AP GRAFICA LINEAS ########################}{\cf1 \par
+}fig,{\cf1  }{\cf9 axs}{\cf1  }{\cf6 =}{\cf1  }plt.subplots{\cf6 (}{\cf20 1},{\cf1  }len{\cf6 (}corrupciones{\cf6 )},{\cf1  }{\cf9 figsize}{\cf6 =}{\cf6 (}{\cf20 18},{\cf1  }{\cf20 5}{\cf6 )},{\cf1  }{\cf9 sharey}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf3\b for}{\cf1  }idx,{\cf1  }corruption{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}corrupciones{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 ax}{\cf1  }{\cf6 =}{\cf1  }axs{\cf6 [}idx{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }modelo{\cf1  }{\cf3\b in}{\cf1  }modelos:{\cf1 \par
+}{\cf1         }#{\cf1  }Original{\cf1  }{\cf6 (}sin{\cf1  }corrupci{\u243}n{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 df_original}{\cf1  }{\cf6 =}{\cf1  }df_resultado{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "model"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }modelo{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "corruption"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 "original"}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "severity"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "min dist"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "max dist"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 80}{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 [}{\cf13 "result"}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }Corrupci{\u243}n{\cf1  }espec{\u237}fica{\cf1  }con{\cf1  }severidades{\cf1  }{\cf20 1}-5{\cf1 \par
+}{\cf1         }{\cf9 df_plot}{\cf1  }{\cf6 =}{\cf1  }df_resultado{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "model"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }modelo{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "corruption"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }corruption{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "severity"}{\cf6 ]}{\cf1  }>{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "min dist"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "max dist"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 80}{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1         }{\cf6 ]}.sort_values{\cf6 (}{\cf13 "severity"}{\cf6 )}{\cf6 [}{\cf13 "result"}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }Combinar:{\cf1  }primero{\cf1  }original,{\cf1  }luego{\cf1  }las{\cf1  }severidades{\cf1 \par
+}{\cf1         }{\cf9 valores}{\cf1  }{\cf6 =}{\cf1  }pd.concat{\cf6 (}{\cf6 [}df_original.reset_index{\cf6 (}{\cf9 drop}{\cf6 =}True{\cf6 )},{\cf1  }df_plot.reset_index{\cf6 (}{\cf9 drop}{\cf6 =}True{\cf6 )}{\cf6 ]},{\cf1  }{\cf9 ignore_index}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }Crear{\cf1  }eje{\cf1  }x:{\cf1  }{\cf20 0}{\cf1  }{\cf6 (}original{\cf6 )}{\cf1  }+{\cf1  }severidades{\cf1  }{\cf6 [}{\cf20 1},{\cf1  }{\cf20 2},{\cf1  }{\cf20 3},{\cf1  }{\cf20 4},{\cf1  }{\cf20 5}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 x}{\cf1  }{\cf6 =}{\cf1  }list{\cf6 (}range{\cf6 (}len{\cf6 (}valores{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }ax.plot{\cf6 (}x,{\cf1  }valores,{\cf1  }{\cf9 marker}{\cf6 =}{\cf13 "o"},{\cf1  }{\cf9 label}{\cf6 =}modelo.upper{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }ax.tick_params{\cf6 (}{\cf9 axis}{\cf6 =}{\cf13 'x'},{\cf1  }{\cf9 labelsize}{\cf6 =}{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1         }ax.tick_params{\cf6 (}{\cf9 axis}{\cf6 =}{\cf13 'y'},{\cf1  }{\cf9 labelsize}{\cf6 =}{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }ax.set_title{\cf6 (}f{\cf13 "Corrupci{\u243}n: \{traducir_c[corruption]\}"},{\cf1  }{\cf9 fontsize}{\cf1  }{\cf6 =}{\cf1  }{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1     }ax.set_xlabel{\cf6 (}{\cf13 "Severidad"},{\cf1  }{\cf9 fontsize}{\cf1  }{\cf6 =}{\cf1  }{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }{\cf9 idx}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1         }ax.set_ylabel{\cf6 (}f{\cf13 "AP\{metrica.upper()\} \{traducir_cls[clase].upper()\}"},{\cf1  }{\cf9 fontsize}{\cf1  }{\cf6 =}{\cf1  }{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1     }ax.grid{\cf6 (}True{\cf6 )}{\cf1 \par
+}{\cf1     }ax.legend{\cf6 (}{\cf9 loc}{\cf6 =}{\cf13 'lower left'},{\cf1  }{\cf9 prop}{\cf6 =}{\cf6 \{}{\cf13 'size'}:{\cf1  }{\cf20 8}{\cf6 \}}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}plt.tight_layout{\cf6 (}{\cf6 )}{\cf1 \par
+}plt.savefig{\cf6 (}f{\cf13 "AP_\{metrica\}_\{clase\}_\{dificultad\}_(0,80)_severidades.png"}{\cf6 )}{\cf1   }#{\cf1  }Guarda{\cf1  }la{\cf1  }figura{\cf1  }como{\cf1  }PNG{\cf1 \par
+}{\cf1 \par
+}{\cf2\i ######################## TODOS LOS RANGOS AR HISTOGRAMA ########################}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Calculo el AR para todos os rangos y mAR}{\cf1 \par
+}{\cf9 df_AR_total}{\cf1  }{\cf6 =}{\cf1  }pd.DataFrame{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf9 rangos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 (}{\cf20 0},30{\cf6 )},{\cf1  }{\cf6 (}{\cf20 30},50{\cf6 )},{\cf1  }{\cf6 (}{\cf20 50},80{\cf6 )},{\cf1  }{\cf6 (}{\cf20 0},80{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf3\b for}{\cf1  }modelo{\cf1  }{\cf3\b in}{\cf1  }modelos:{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }rango{\cf1  }{\cf3\b in}{\cf1  }rangos:{\cf1 \par
+}{\cf1         }{\cf9 df_model}{\cf1  }{\cf6 =}{\cf1  }df_resultado{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "model"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }modelo{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "min dist"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }rango{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1             }{\cf6 (}df_resultado{\cf6 [}{\cf13 "max dist"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }rango{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 base}{\cf1  }{\cf6 =}{\cf1  }df_model{\cf6 [}df_model{\cf6 [}{\cf13 "corruption"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 "original"}{\cf6 ]}{\cf6 [}{\cf13 "result"}{\cf6 ]}{\cf1 \par
+}{\cf1         }#{\cf1  }{\cf3\b if}{\cf1  }base.empty{\cf1  }or{\cf1  }base.iloc{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1         }#{\cf1      }{\cf3\b continue}{\cf1   }#{\cf1  }Evita{\cf1  }errores{\cf1  }por{\cf1  }divisi{\u243}n{\cf1  }entre{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 df_AR}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1             }{\cf13 "model"}:{\cf1  }modelo,{\cf1 \par
+}{\cf1             }{\cf13 "rango"}:{\cf1  }f{\cf13 "\{rango[0]\}-\{rango[1]\}"}{\cf1 \par
+}{\cf1         }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }c{\cf1  }{\cf3\b in}{\cf1  }corrupciones:{\cf1 \par
+}{\cf1             }{\cf9 s1}{\cf1  }{\cf6 =}{\cf1  }df_model{\cf6 [}{\cf6 (}df_model{\cf6 [}{\cf13 "corruption"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }c{\cf6 )}{\cf1  }&{\cf1  }{\cf6 (}df_model{\cf6 [}{\cf13 "severity"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}{\cf6 )}{\cf6 ]}{\cf6 [}{\cf13 "result"}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 s2}{\cf1  }{\cf6 =}{\cf1  }df_model{\cf6 [}{\cf6 (}df_model{\cf6 [}{\cf13 "corruption"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }c{\cf6 )}{\cf1  }&{\cf1  }{\cf6 (}df_model{\cf6 [}{\cf13 "severity"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 3}{\cf6 )}{\cf6 ]}{\cf6 [}{\cf13 "result"}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 s3}{\cf1  }{\cf6 =}{\cf1  }df_model{\cf6 [}{\cf6 (}df_model{\cf6 [}{\cf13 "corruption"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }c{\cf6 )}{\cf1  }&{\cf1  }{\cf6 (}df_model{\cf6 [}{\cf13 "severity"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 5}{\cf6 )}{\cf6 ]}{\cf6 [}{\cf13 "result"}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }#{\cf1  }{\cf3\b if}{\cf1  }s1.empty{\cf1  }or{\cf1  }s2.empty{\cf1  }or{\cf1  }s3.empty:{\cf1 \par
+}{\cf1             }#{\cf1      }{\cf3\b continue}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }#{\cf1  }Calcular{\cf1  }RA{\cf1  }por{\cf1  }severidad{\cf1 \par
+}{\cf1             }df_AR{\cf6 [}f{\cf13 "RA_\{traducir_c[c]\}_s1"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }s1.iloc{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }/{\cf1  }base.iloc{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1             }df_AR{\cf6 [}f{\cf13 "RA_\{traducir_c[c]\}_s2"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }s2.iloc{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }/{\cf1  }base.iloc{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1             }df_AR{\cf6 [}f{\cf13 "RA_\{traducir_c[c]\}_s3"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }s3.iloc{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }/{\cf1  }base.iloc{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }#{\cf1  }RA{\cf1  }promedio{\cf1 \par
+}{\cf1             }df_AR{\cf6 [}f{\cf13 "RA_\{traducir_c[c]\}"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf1 \par
+}{\cf1                 }df_AR{\cf6 [}f{\cf13 "RA_\{traducir_c[c]\}_s1"}{\cf6 ]}{\cf1  }+{\cf1 \par
+}{\cf1                 }df_AR{\cf6 [}f{\cf13 "RA_\{traducir_c[c]\}_s2"}{\cf6 ]}{\cf1  }+{\cf1 \par
+}{\cf1                 }df_AR{\cf6 [}f{\cf13 "RA_\{traducir_c[c]\}_s3"}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf6 )}{\cf1  }/{\cf1  }{\cf20 3}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }Calcular{\cf1  }mRA{\cf1  }{\cf6 (}promedio{\cf1  }entre{\cf1  }las{\cf1  }RA{\cf1  }por{\cf1  }corrupci{\u243}n{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 ra_cols}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}k{\cf1  }{\cf3\b for}{\cf1  }k{\cf1  }{\cf3\b in}{\cf1  }df_AR{\cf1  }{\cf3\b if}{\cf1  }k.startswith{\cf6 (}{\cf13 "RA_"}{\cf6 )}{\cf1  }and{\cf1  }{\cf13 "_s"}{\cf1  }not{\cf1  }{\cf3\b in}{\cf1  }k{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }ra_cols:{\cf1 \par
+}{\cf1             }df_AR{\cf6 [}{\cf13 "mRA"}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }pd.Series{\cf6 (}df_AR{\cf6 )}{\cf6 [}ra_cols{\cf6 ]}.mean{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 df_AR_total}{\cf1  }{\cf6 =}{\cf1  }pd.concat{\cf6 (}{\cf6 [}df_AR_total,{\cf1  }pd.DataFrame{\cf6 (}{\cf6 [}df_AR{\cf6 ]}{\cf6 )}{\cf6 ]},{\cf1  }{\cf9 ignore_index}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}df_AR_total.to_csv{\cf6 (}f{\cf13 "AR_\{metrica\}_\{clase\}_\{dificultad\}.csv"}{\cf6 )}{\cf1 \par
+}df_AR_total.dropna{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Filtrar columnas RA que no tengan sufijos como _s1, _s2, _s3}{\cf1 \par
+}{\cf9 ra_columns}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}col{\cf1  }{\cf3\b for}{\cf1  }col{\cf1  }{\cf3\b in}{\cf1  }df_AR_total.columns{\cf1  }{\cf3\b if}{\cf1  }col.startswith{\cf6 (}{\cf13 "RA_"}{\cf6 )}{\cf1  }and{\cf1  }not{\cf1  }any{\cf6 (}s{\cf1  }{\cf3\b in}{\cf1  }col{\cf1  }{\cf3\b for}{\cf1  }s{\cf1  }{\cf3\b in}{\cf1  }{\cf6 [}{\cf13 '_s1'},{\cf1  }{\cf13 '_s2'},{\cf1  }{\cf13 '_s3'}{\cf6 ]}{\cf6 )}{\cf6 ]}{\cf1 \par
+}df_AR_total{\cf6 [}ra_columns{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }df_AR_total{\cf6 [}ra_columns{\cf6 ]}.apply{\cf6 (}pd.to_numeric,{\cf1  }{\cf9 errors}{\cf6 =}{\cf13 'coerce'}{\cf6 )}.clip{\cf6 (}{\cf9 upper}{\cf6 =}{\cf20 1}.0{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Convertir a formato largo}{\cf1 \par
+}{\cf9 df_long}{\cf1  }{\cf6 =}{\cf1  }df_AR_total.melt{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 id_vars}{\cf6 =}{\cf6 [}{\cf13 'model'},{\cf1  }{\cf13 'rango'}{\cf6 ]},{\cf1 \par
+}{\cf1     }{\cf9 value_vars}{\cf6 =}ra_columns,{\cf1 \par
+}{\cf1     }{\cf9 var_name}{\cf6 =}{\cf13 'Corrupcion'},{\cf1 \par
+}{\cf1     }{\cf9 value_name}{\cf6 =}{\cf13 'RA'}{\cf1 \par
+}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Limpiar el nombre de las condiciones (quitar el prefijo RA_)}{\cf1 \par
+}df_long{\cf6 [}{\cf13 'Corrupcion'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }df_long{\cf6 [}{\cf13 'Corrupcion'}{\cf6 ]}.str.replace{\cf6 (}{\cf13 'RA_'},{\cf1  }{\cf13 ''},{\cf1  }{\cf9 regex}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Obtener los rangos {\u250}nicos para crear una fila por cada uno}{\cf1 \par
+}{\cf9 rangos}{\cf1  }{\cf6 =}{\cf1  }df_long{\cf6 [}{\cf13 'rango'}{\cf6 ]}.unique{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Crear subplots}{\cf1 \par
+}fig,{\cf1  }{\cf9 axes}{\cf1  }{\cf6 =}{\cf1  }plt.subplots{\cf6 (}len{\cf6 (}rangos{\cf6 )},{\cf1  }{\cf20 1},{\cf1  }{\cf9 figsize}{\cf6 =}{\cf6 (}{\cf20 12},{\cf1  }{\cf20 7}{\cf1  }*{\cf1  }len{\cf6 (}rangos{\cf6 )}{\cf6 )},{\cf1  }{\cf9 sharey}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Dibujar los gr{\u225}ficos por cada rango}{\cf1 \par
+}{\cf3\b for}{\cf1  }i,{\cf1  }rango{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}rangos{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 df_rango}{\cf1  }{\cf6 =}{\cf1  }df_long{\cf6 [}df_long{\cf6 [}{\cf13 'rango'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }rango{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }#{\cf1  }Crear{\cf1  }tabla{\cf1  }para{\cf1  }plot:{\cf1  }Clima{\cf1  }como{\cf1  }{\u237}ndice,{\cf1  }columnas{\cf1  }los{\cf1  }modelos{\cf1 \par
+}{\cf1     }{\cf9 pivot}{\cf1  }{\cf6 =}{\cf1  }df_rango.pivot_table{\cf6 (}{\cf9 index}{\cf6 =}{\cf13 'Corrupcion'},{\cf1  }{\cf9 columns}{\cf6 =}{\cf13 'model'},{\cf1  }{\cf9 values}{\cf6 =}{\cf13 'RA'},{\cf1  }{\cf9 aggfunc}{\cf6 =}{\cf13 'mean'}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }#{\cf1  }Saltar{\cf1  }si{\cf1  }no{\cf1  }hay{\cf1  }datos{\cf1  }v{\u225}lidos{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }pivot.empty{\cf1  }or{\cf1  }pivot.isnull{\cf6 (}{\cf6 )}.all{\cf6 (}{\cf6 )}.all{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1         }print{\cf6 (}f{\cf13 "[AVISO] Sin datos v{\u225}lidos para el rango: \{rango\}"}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b continue}{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }#{\cf1  }Graficar{\cf1 \par
+}{\cf1     }pivot.plot{\cf6 (}{\cf9 kind}{\cf6 =}{\cf13 'bar'},{\cf1  }{\cf9 ax}{\cf6 =}axes{\cf6 [}i{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }axes{\cf6 [}i{\cf6 ]}.set_title{\cf6 (}f{\cf13 'Comparaci{\u243}n de RA por Corrupcion - Rango \{rango\}'},{\cf1  }{\cf9 fontsize}{\cf1  }{\cf6 =}{\cf1  }{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1     }axes{\cf6 [}i{\cf6 ]}.set_ylabel{\cf6 (}f{\cf13 'RA_\{metrica.upper()\} \{traducir_cls[clase].upper()\}'},{\cf1  }{\cf9 fontsize}{\cf1  }{\cf6 =}{\cf1  }{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1     }axes{\cf6 [}i{\cf6 ]}.set_xlabel{\cf6 (}{\cf13 'Corrupcion'},{\cf1  }{\cf9 fontsize}{\cf1  }{\cf6 =}{\cf1  }{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1     }axes{\cf6 [}i{\cf6 ]}.grid{\cf6 (}True{\cf6 )}{\cf1 \par
+}{\cf1     }axes{\cf6 [}i{\cf6 ]}.legend{\cf6 (}{\cf9 title}{\cf6 =}{\cf13 'Modelo'},loc{\cf6 =}{\cf13 'lower left'}{\cf6 )}{\cf1 \par
+}{\cf1     }axes{\cf6 [}i{\cf6 ]}.tick_params{\cf6 (}{\cf9 axis}{\cf6 =}{\cf13 'x'},{\cf1  }{\cf9 labelsize}{\cf6 =}{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1     }axes{\cf6 [}i{\cf6 ]}.tick_params{\cf6 (}{\cf9 axis}{\cf6 =}{\cf13 'y'},{\cf1  }{\cf9 labelsize}{\cf6 =}{\cf20 15}{\cf6 )}{\cf1 \par
+}{\cf1     }axes{\cf6 [}i{\cf6 ]}.legend{\cf6 (}{\cf9 loc}{\cf6 =}{\cf13 'lower right'},{\cf1  }{\cf9 prop}{\cf6 =}{\cf6 \{}{\cf13 'size'}:{\cf1  }{\cf20 15}{\cf6 \}}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}plt.tight_layout{\cf6 (}{\cf6 )}{\cf1 \par
+}plt.savefig{\cf6 (}f{\cf13 "RA_\{metrica\}_\{clase\}_\{dificultad\}_por_rango.png"}{\cf6 )}{\cf1   }#{\cf1  }Guarda{\cf1  }la{\cf1  }figura{\cf1  }como{\cf1  }PNG{\cf1 \par
+}}

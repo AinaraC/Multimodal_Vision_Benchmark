@@ -1,0 +1,60 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }time{\cf1 \par
+}import{\cf1  }csv{\cf1 \par
+}import{\cf1  }subprocess{\cf1 \par
+}import{\cf1  }jtop{\cf1 \par
+}import{\cf1  }pandas{\cf1  }as{\cf1  }pd{\cf1 \par
+}import{\cf1  }matplotlib.pyplot{\cf1  }as{\cf1  }plt{\cf1 \par
+}import{\cf1  }argparse{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }parse_args{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 parser}{\cf1  }{\cf6 =}{\cf1  }argparse.ArgumentParser{\cf6 (}{\cf9 description}{\cf6 =}{\cf13 'Orin benchmark a model'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--filepath'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'file name to save metrics'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--wait'},default{\cf6 =}{\cf20 0},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'wait seconds aprox'}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 args}{\cf1  }{\cf6 =}{\cf1  }parser.parse_args{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }args{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }JetsonMetrics{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }file_path,{\cf1  }wait_sec{\cf6 )}:{\cf1 \par
+}{\cf1         }self.wait_sec{\cf1  }{\cf6 =}{\cf1  }wait_sec{\cf1 \par
+}{\cf1         }self.file_path{\cf1  }{\cf6 =}{\cf1  }file_path{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }get_jetson_metrics_jtop{\cf6 (}self{\cf6 )}:{\cf1 \par
+}{\cf1         }with{\cf1  }jtop.jtop{\cf6 (}{\cf6 )}{\cf1  }as{\cf1  }jetson:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }jetson.ok{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 data}{\cf1  }{\cf6 =}{\cf1  }jetson.stats{\cf1 \par
+}{\cf1                 }{\cf9 metrics}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                     }{\cf13 'gpu_usage'}:{\cf1  }data{\cf6 [}{\cf13 'GPU'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'cpu_1'}:{\cf1  }data{\cf6 [}{\cf13 'CPU1'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'cpu_2'}:{\cf1  }data{\cf6 [}{\cf13 'CPU2'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'cpu_3'}:{\cf1  }data{\cf6 [}{\cf13 'CPU3'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'cpu_4'}:{\cf1  }data{\cf6 [}{\cf13 'CPU4'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'cpu_5'}:{\cf1  }data{\cf6 [}{\cf13 'CPU5'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'cpu_6'}:{\cf1  }data{\cf6 [}{\cf13 'CPU6'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'cpu_7'}:{\cf1  }data{\cf6 [}{\cf13 'CPU7'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'cpu_8'}:{\cf1  }data{\cf6 [}{\cf13 'CPU8'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'gpu_temp'}:{\cf1  }data{\cf6 [}{\cf13 'Temp gpu'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'cpu_temp'}:{\cf1  }data{\cf6 [}{\cf13 'Temp cpu'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'tj_temp'}:{\cf1  }data{\cf6 [}{\cf13 'Temp tj'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'power_tot'}:{\cf1  }data{\cf6 [}{\cf13 'Power TOT'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'power_model'}:{\cf1  }data{\cf6 [}{\cf13 'Power VDD_CPU_GPU_CV'}{\cf6 ]},{\cf1 \par
+}{\cf1                     }{\cf13 'RAM'}:{\cf1  }data{\cf6 [}{\cf13 'RAM'}{\cf6 ]},{\cf1    }{\cf1 \par
+}{\cf1                     }{\cf13 'elapsed_time'}:{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1                 }{\cf6 \}}{\cf1 \par
+}{\cf1                 }{\cf3\b return}{\cf1  }metrics{\cf1 \par
+}{\cf1                 }{\cf1 \par
+}{\cf1     }def{\cf1  }write_metrics_to_csv_jtop{\cf6 (}self{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 fieldnames}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'gpu_usage'},{\cf13 'cpu_1'},{\cf13 'cpu_2'},{\cf13 'cpu_3'},{\cf13 'cpu_4'},{\cf13 'cpu_5'},{\cf13 'cpu_6'},{\cf13 'cpu_7'},{\cf13 'cpu_8'},{\cf1  }{\cf13 'gpu_temp'},{\cf1  }{\cf13 'cpu_temp'},{\cf13 'tj_temp'},{\cf1  }{\cf13 'power_tot'},{\cf13 'power_model'},{\cf1  }{\cf13 'RAM'},{\cf1  }{\cf13 'elapsed_time'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 df}{\cf1  }{\cf6 =}{\cf1  }pd.DataFrame{\cf6 (}{\cf9 columns}{\cf6 =}fieldnames{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 start_time}{\cf1  }{\cf6 =}{\cf1  }time.time{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b while}{\cf1  }True:{\cf1 \par
+}{\cf1             }{\cf9 metrics}{\cf1  }{\cf6 =}{\cf1  }self.get_jetson_metrics_jtop{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }metrics{\cf6 [}{\cf13 'elapsed_time'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }time.time{\cf6 (}{\cf6 )}{\cf1  }-{\cf1  }start_time{\cf1 \par
+}{\cf1             }{\cf9 df}{\cf1  }{\cf6 =}{\cf1  }df.append{\cf6 (}metrics,{\cf1  }{\cf9 ignore_index}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }df.to_csv{\cf6 (}self.file_path{\cf6 )}{\cf1 \par
+}{\cf1             }time.sleep{\cf6 (}self.wait_sec{\cf6 )}{\cf1    }{\cf1 \par
+}{\cf1 \par
+}{\cf3\b if}{\cf1  }{\cf9 __name__}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 '__main__'}:{\cf1 \par
+}{\cf1     }{\cf9 args}{\cf1  }{\cf6 =}{\cf1  }parse_args{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 jetson_metrics}{\cf1  }{\cf6 =}{\cf1  }JetsonMetrics{\cf6 (}args.filepath,{\cf1  }args.wait{\cf6 )}{\cf1 \par
+}{\cf1     }jetson_metrics.write_metrics_to_csv_jtop{\cf6 (}{\cf6 )}{\cf1  }{\cf1 \par
+}}

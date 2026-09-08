@@ -1,0 +1,228 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }pickle{\cf1 \par
+}import{\cf1  }time{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pathlib}{\cf1  }import{\cf1  }Path{\cf1 \par
+}import{\cf1  }numpy{\cf1  }as{\cf1  }np{\cf1 \par
+}import{\cf1  }torch{\cf1 \par
+}import{\cf1  }os{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.datasets}{\cf1  }import{\cf1  }build_dataloader{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.models}{\cf1  }import{\cf1  }load_data_to_gpu{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.utils}{\cf1  }import{\cf1  }common_utils{\cf1 \par
+}import{\cf1  }time{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.config}{\cf1  }import{\cf1  }cfg,{\cf1  }cfg_from_list,{\cf1  }cfg_from_yaml_file,{\cf1  }log_config_to_file{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pcdet.models}{\cf1  }import{\cf1  }build_network{\cf1 \par
+}import{\cf1  }datetime{\cf1 \par
+}import{\cf1  }warnings{\cf1 \par
+}warnings.filterwarnings{\cf6 (}{\cf13 "ignore"}{\cf6 )}{\cf1 \par
+}import{\cf1  }sys{\cf1 \par
+}sys.path.append{\cf6 (}os.path.abspath{\cf6 (}{\cf13 '/VirConv/tools/PENet'}{\cf6 )}{\cf6 )}{\cf1  }#{\cf1  }Agregar{\cf1  }la{\cf1  }ruta{\cf1  }de{\cf1  }PENet{\cf1  }para{\cf1  }que{\cf1  }encuentre{\cf1  }el{\cf1  }archivo{\cf1  }model.py{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 PENet.build_model_inference}{\cf1  }import{\cf1  }build_completion_model{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 PENet.vis_utils}{\cf1  }import{\cf1  }depth_to_points{\cf1 \par
+}import{\cf1  }argparse{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }parse_args{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 parser}{\cf1  }{\cf6 =}{\cf1  }argparse.ArgumentParser{\cf6 (}{\cf9 description}{\cf6 =}{\cf13 'MMDet benchmark a model'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--config'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'test config file path'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--checkpoint'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'checkpoint file'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--samples'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1  }{\cf9 default}{\cf6 =}{\cf20 200},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'samples to benchmark'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf1  }{\cf13 '--log-interval'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1  }{\cf9 default}{\cf6 =}{\cf20 50},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'interval of logging'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--network'},{\cf1  }{\cf9 default}{\cf6 =}{\cf13 'vir'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'model to evaluate'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--path'},{\cf1  }{\cf9 default}{\cf6 =}{\cf13 'latency_eval'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'logger dirname'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--detpath'},{\cf1  }{\cf9 default}{\cf6 =}{\cf13 '../data/kitti/training'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'logger path'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--in_seconds'},{\cf1  }{\cf9 action}{\cf6 =}{\cf13 'store_true'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'compute time in seconds instead of fps'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--num_warmup'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1  }{\cf9 default}{\cf6 =}{\cf20 5},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'Dont count the first <num_warmup> iterations. Normally the first iterations are slower'}{\cf1  }{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 args}{\cf1  }{\cf6 =}{\cf1  }parser.parse_args{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }args{\cf1 \par
+}{\cf1 \par
+}class{\cf1  }latency_evaluation{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1  }args{\cf6 )}:{\cf1 \par
+}{\cf1         }self.args{\cf1  }{\cf6 =}{\cf1  }args{\cf1 \par
+}{\cf1 \par
+}{\cf1         }np.random.seed{\cf6 (}{\cf20 1024}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1     }def{\cf1  }__define_logger{\cf6 (}self{\cf6 )}:{\cf1 \par
+}{\cf1         }os.makedirs{\cf6 (}self.args.path,{\cf1  }{\cf9 exist_ok}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 log_file}{\cf1  }{\cf6 =}{\cf1  }self.args.path{\cf1  }+{\cf1  }{\cf13 '/'}{\cf1  }+{\cf1  }{\cf6 (}{\cf13 'log_latency_eval_%s.txt'}{\cf1  }%{\cf1  }datetime.datetime.now{\cf6 (}{\cf6 )}.strftime{\cf6 (}{\cf13 '%Y%m%d-%H%M%S'}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 logger}{\cf1  }{\cf6 =}{\cf1  }common_utils.create_logger{\cf6 (}log_file,{\cf1  }{\cf9 rank}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }logger{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__create_val_loader{\cf6 (}self{\cf6 )}:{\cf1 \par
+}{\cf1         }cfg_from_yaml_file{\cf6 (}self.args.config,{\cf1  }cfg{\cf6 )}{\cf1 \par
+}{\cf1         }val_set,{\cf1  }val_loader,{\cf1  }{\cf9 sampler}{\cf1  }{\cf6 =}{\cf1  }build_dataloader{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 dataset_cfg}{\cf6 =}cfg.DATA_CONFIG,{\cf1 \par
+}{\cf1         }{\cf9 class_names}{\cf6 =}cfg.CLASS_NAMES,{\cf1 \par
+}{\cf1         }{\cf9 batch_size}{\cf6 =}{\cf20 1},{\cf1  }{\cf9 training}{\cf6 =}False,{\cf1  }{\cf9 dist}{\cf6 =}False,{\cf1  }{\cf9 workers}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }val_loader{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__virconv_model{\cf6 (}self{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 logger}{\cf1  }{\cf6 =}{\cf1  }self.__define_logger{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 val_loader}{\cf1  }{\cf6 =}{\cf1  }self.__create_val_loader{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }cfg_from_yaml_file{\cf6 (}self.args.config,{\cf1  }cfg{\cf6 )}{\cf1 \par
+}{\cf1         }cfg.TAG{\cf1  }{\cf6 =}{\cf1  }Path{\cf6 (}self.args.config{\cf6 )}.stem{\cf1 \par
+}{\cf1         }cfg.EXP_GROUP_PATH{\cf1  }{\cf6 =}{\cf1  }{\cf13 '/'}.join{\cf6 (}self.args.config.split{\cf6 (}{\cf13 '/'}{\cf6 )}{\cf6 [}{\cf20 1}:-1{\cf6 ]}{\cf6 )}{\cf1   }#{\cf1  }remove{\cf1  }{\cf13 'cfgs'}{\cf1  }and{\cf1  }{\cf13 'xxxx.yaml'}{\cf1 \par
+}{\cf1         }{\cf9 model}{\cf1  }{\cf6 =}{\cf1  }build_network{\cf6 (}{\cf9 model_cfg}{\cf6 =}cfg.MODEL,{\cf1  }{\cf9 num_class}{\cf6 =}len{\cf6 (}cfg.CLASS_NAMES{\cf6 )},{\cf1  }{\cf9 dataset}{\cf6 =}val_loader.dataset{\cf6 )}{\cf1 \par
+}{\cf1         }model.load_params_from_file{\cf6 (}{\cf9 filename}{\cf6 =}self.args.checkpoint,{\cf1  }{\cf9 logger}{\cf6 =}logger{\cf6 )}{\cf1 \par
+}{\cf1         }model.cuda{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }model.eval{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }model{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }def{\cf1  }__depth_model{\cf6 (}self{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 model_creator}{\cf1  }{\cf6 =}{\cf1  }build_completion_model{\cf6 (}{\cf9 network_model}{\cf6 =}self.args.network,evaluate{\cf6 =}self.args.checkpoint,{\cf1  }{\cf9 detpath}{\cf6 =}self.args.detpath,{\cf1  }{\cf9 test}{\cf6 =}True,{\cf1  }{\cf9 cpu}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1         }depth_model,{\cf1  }{\cf9 completion_loader}{\cf1  }{\cf6 =}{\cf1  }model_creator.create_model{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }depth_model.eval{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }torch.cuda.empty_cache{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }depth_model,{\cf1  }completion_loader{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }def{\cf1  }virconv_inference_time{\cf6 (}self{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.args.samples{\cf1  }<{\cf6 =}{\cf1  }self.args.num_warmup:{\cf1 \par
+}{\cf1             }raise{\cf1  }ValueError{\cf6 (}f{\cf13 'Samples param must be greater than \{self.args.num_warmup\}. If you want to change this limitation, change num_warmup value'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }{\cf9 model}{\cf1  }{\cf6 =}{\cf1  }self.__virconv_model{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 val_loader}{\cf1  }{\cf6 =}{\cf1  }self.__create_val_loader{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 start_time}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf9 elapsed}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf9 pure_inf_time}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }print{\cf6 (}{\cf13 '*************** STARTING LATENCY EVALUATION OF VIRCONV NETWORK *****************'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }https://github.com/hailanyi/VirConv/issues/51{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i,{\cf1  }batch_dict{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}val_loader{\cf6 )}:{\cf1 \par
+}{\cf1             }torch.cuda.synchronize{\cf6 (}{\cf6 )}{\cf1  }{\cf1 \par
+}{\cf1             }{\cf9 start_time}{\cf1  }{\cf6 =}{\cf1  }time.perf_counter{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }load_data_to_gpu{\cf6 (}batch_dict{\cf6 )}{\cf1 \par
+}{\cf1             }with{\cf1  }torch.no_grad{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1                 }pred_dicts,{\cf1  }ret_dict,{\cf1  }{\cf9 batch_dict}{\cf1  }{\cf6 =}{\cf1  }model{\cf6 (}batch_dict{\cf6 )}{\cf1 \par
+}{\cf1             }torch.cuda.synchronize{\cf6 (}{\cf6 )}{\cf1    }#{\cf1  }https://github.com/JUGGHM/PENet_ICRA2021{\cf1 \par
+}{\cf1             }{\cf9 elapsed}{\cf1  }{\cf6 =}{\cf1  }time.perf_counter{\cf6 (}{\cf6 )}{\cf1  }-{\cf1  }start_time{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }i{\cf1  }>{\cf6 =}{\cf1  }self.args.num_warmup:{\cf1 \par
+}{\cf1                 }{\cf9 pure_inf_time}{\cf1  }{\cf6 +=}{\cf1  }elapsed{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }%{\cf1  }self.args.log_interval{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }self.args.in_seconds:{\cf1 \par
+}{\cf1                         }{\cf9 seconds}{\cf1  }{\cf6 =}{\cf1  }pure_inf_time{\cf1  }/{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf1  }-{\cf1  }self.args.num_warmup{\cf6 )}{\cf1 \par
+}{\cf1                         }print{\cf6 (}f{\cf13 'Done sample [\{i + 1:<3\}/ \{self.args.samples\}], '}{\cf1 \par
+}{\cf1                             }f{\cf13 'latency: \{seconds:.2f\} seconds'}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b else}:{\cf1 \par
+}{\cf1                         }{\cf9 fps}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf1  }-{\cf1  }self.args.num_warmup{\cf6 )}{\cf1  }/{\cf1  }pure_inf_time{\cf1 \par
+}{\cf1                         }print{\cf6 (}f{\cf13 'Done sample [\{i + 1:<3\}/ \{self.args.samples\}], '}{\cf1 \par
+}{\cf1                             }f{\cf13 'fps: \{fps:.2f\} sample / s'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }self.args.samples:{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }self.args.in_seconds:{\cf1 \par
+}{\cf1                     }{\cf9 seconds}{\cf1  }{\cf6 =}{\cf1  }pure_inf_time{\cf1  }/{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf1  }-{\cf1  }self.args.num_warmup{\cf6 )}{\cf1 \par
+}{\cf1                     }print{\cf6 (}f{\cf13 'Overall [\{i + 1:<3\}/ \{self.args.samples\}], '}{\cf1 \par
+}{\cf1                        }f{\cf13 'latency: \{seconds:.2f\} seconds'}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf1 \par
+}{\cf1                     }{\cf3\b return}{\cf1  }seconds{\cf1 \par
+}{\cf1                 }{\cf1 \par
+}{\cf1                 }{\cf3\b else}:{\cf1 \par
+}{\cf1                     }{\cf9 fps}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf1  }-{\cf1  }self.args.num_warmup{\cf6 )}{\cf1  }/{\cf1  }pure_inf_time{\cf1 \par
+}{\cf1                     }print{\cf6 (}f{\cf13 'Overall [\{i + 1:<3\}/ \{self.args.samples\}], '}{\cf1 \par
+}{\cf1                         }f{\cf13 'fps: \{fps:.2f\} sample / s'}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf1 \par
+}{\cf1                     }{\cf3\b return}{\cf1  }fps{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }def{\cf1  }penet_inference_time{\cf6 (}self{\cf6 )}:{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.args.samples{\cf1  }<{\cf6 =}{\cf1  }self.args.num_warmup:{\cf1 \par
+}{\cf1             }raise{\cf1  }ValueError{\cf6 (}f{\cf13 'Samples param must be greater than \{self.args.num_warmup\}. If you want to change this limitation, change num_warmup value'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 cuda}{\cf1  }{\cf6 =}{\cf1  }torch.cuda.is_available{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }cuda:{\cf1 \par
+}{\cf1             }import{\cf1  }torch.backends.cudnn{\cf1  }as{\cf1  }cudnn{\cf1 \par
+}{\cf1             }cudnn.benchmark{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }{\cf9 device}{\cf1  }{\cf6 =}{\cf1  }torch.device{\cf6 (}{\cf13 "cuda"}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 device}{\cf1  }{\cf6 =}{\cf1  }torch.device{\cf6 (}{\cf13 "cpu"}{\cf6 )}{\cf1 \par
+}{\cf1         }print{\cf6 (}{\cf13 "=> using '\{\}' for computation."}.format{\cf6 (}device{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }depth_model,{\cf1  }{\cf9 completion_loader}{\cf1  }{\cf6 =}{\cf1  }self.__depth_model{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 start_time}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf9 elapsed}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf9 pure_inf_time}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.args.network{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'pe'}:{\cf1 \par
+}{\cf1             }{\cf9 depth_network}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'PENET'}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 depth_network}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'ENET'}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }print{\cf6 (}f{\cf13 '*************** STARTING LATENCY EVALUATION OF \{depth_network\} NETWORK *****************'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i,{\cf1  }batch_data{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}completion_loader{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 batch_data}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                 }key:{\cf1  }val.to{\cf6 (}device{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf3\b for}{\cf1  }key,{\cf1  }val{\cf1  }{\cf3\b in}{\cf1  }batch_data.items{\cf6 (}{\cf6 )}{\cf1  }{\cf3\b if}{\cf1  }val{\cf1  }is{\cf1  }not{\cf1  }None{\cf1 \par
+}{\cf1             }{\cf6 \}}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf6 (}{\cf9 depth_network}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'ENET'}{\cf6 )}:{\cf1 \par
+}{\cf1                 }torch.cuda.synchronize{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 start_time}{\cf1  }{\cf6 =}{\cf1  }time.perf_counter{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1                 }with{\cf1  }torch.no_grad{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1                     }st1_pred,{\cf1  }st2_pred,{\cf1  }{\cf9 pred}{\cf1  }{\cf6 =}{\cf1  }depth_model{\cf6 (}batch_data{\cf6 )}{\cf1 \par
+}{\cf1                     }print{\cf6 (}pred{\cf6 )}{\cf1 \par
+}{\cf1                 }depth_to_points{\cf6 (}pred,{\cf1  }i,{\cf1  }self.args.detpath{\cf6 )}{\cf1 \par
+}{\cf1                 }torch.cuda.synchronize{\cf6 (}{\cf6 )}{\cf1    }#{\cf1  }https://github.com/JUGGHM/PENet_ICRA2021{\cf1    }{\cf1 \par
+}{\cf1                 }{\cf9 elapsed}{\cf1  }{\cf6 =}{\cf1  }time.perf_counter{\cf6 (}{\cf6 )}{\cf1  }-{\cf1  }start_time{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }torch.cuda.synchronize{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 start_time}{\cf1  }{\cf6 =}{\cf1  }time.perf_counter{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1                 }with{\cf1  }torch.no_grad{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1                     }{\cf9 pred}{\cf1  }{\cf6 =}{\cf1  }depth_model{\cf6 (}batch_data{\cf6 )}{\cf1 \par
+}{\cf1                 }depth_to_points{\cf6 (}pred,{\cf1  }i,{\cf1  }self.args.detpath{\cf6 )}{\cf1 \par
+}{\cf1                 }torch.cuda.synchronize{\cf6 (}{\cf6 )}{\cf1    }#{\cf1  }https://github.com/JUGGHM/PENet_ICRA2021{\cf1 \par
+}{\cf1                 }{\cf9 elapsed}{\cf1  }{\cf6 =}{\cf1  }time.perf_counter{\cf6 (}{\cf6 )}{\cf1  }-{\cf1  }start_time{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }i{\cf1  }>{\cf6 =}{\cf1  }self.args.num_warmup:{\cf1 \par
+}{\cf1                 }{\cf9 pure_inf_time}{\cf1  }{\cf6 +=}{\cf1  }elapsed{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }%{\cf1  }self.args.log_interval{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }self.args.in_seconds:{\cf1 \par
+}{\cf1                         }{\cf9 seconds}{\cf1  }{\cf6 =}{\cf1  }pure_inf_time{\cf1  }/{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf1  }-{\cf1  }self.args.num_warmup{\cf6 )}{\cf1 \par
+}{\cf1                         }print{\cf6 (}f{\cf13 'Done sample [\{i + 1:<3\}/ \{self.args.samples\}], '}{\cf1 \par
+}{\cf1                             }f{\cf13 'latency: \{seconds:.2f\} seconds'}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b else}:{\cf1 \par
+}{\cf1                         }{\cf9 fps}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf1  }-{\cf1  }self.args.num_warmup{\cf6 )}{\cf1  }/{\cf1  }pure_inf_time{\cf1 \par
+}{\cf1                         }print{\cf6 (}f{\cf13 'Done sample [\{i + 1:<3\}/ \{self.args.samples\}], '}{\cf1 \par
+}{\cf1                             }f{\cf13 'fps: \{fps:.2f\} sample / s'}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }self.args.samples:{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }self.args.in_seconds:{\cf1 \par
+}{\cf1                     }{\cf9 seconds}{\cf1  }{\cf6 =}{\cf1  }pure_inf_time{\cf1  }/{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf1  }-{\cf1  }self.args.num_warmup{\cf6 )}{\cf1 \par
+}{\cf1                     }print{\cf6 (}f{\cf13 'Overall [\{i + 1:<3\}/ \{self.args.samples\}], '}{\cf1 \par
+}{\cf1                     }f{\cf13 'latency: \{seconds:.2f\} seconds'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1                     }{\cf3\b return}{\cf1  }seconds{\cf1 \par
+}{\cf1                 }{\cf1 \par
+}{\cf1                 }{\cf3\b else}:{\cf1 \par
+}{\cf1                     }{\cf9 fps}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf1  }-{\cf1  }self.args.num_warmup{\cf6 )}{\cf1  }/{\cf1  }pure_inf_time{\cf1 \par
+}{\cf1                     }print{\cf6 (}f{\cf13 'Overall [\{i + 1:<3\}/ \{self.args.samples\}], '}{\cf1 \par
+}{\cf1                         }f{\cf13 'fps: \{fps:.2f\} sample / s'}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf1 \par
+}{\cf1                     }{\cf3\b return}{\cf1  }fps{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1 \par
+}{\cf3\b if}{\cf1  }{\cf9 __name__}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 '__main__'}:{\cf1 \par
+}{\cf1     }{\cf9 args}{\cf1  }{\cf6 =}{\cf1  }parse_args{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 latency_calculator}{\cf1  }{\cf6 =}{\cf1  }latency_evaluation{\cf6 (}args{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }args.network{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'vir'}:{\cf1 \par
+}{\cf1         }{\cf9 total_time}{\cf1  }{\cf6 =}{\cf1  }latency_calculator.virconv_inference_time{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b elif}{\cf1  }args.network{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'pe'}{\cf1  }or{\cf1  }args.network{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'e'}:{\cf1 \par
+}{\cf1         }{\cf9 total_time}{\cf1  }{\cf6 =}{\cf1  }latency_calculator.penet_inference_time{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }print{\cf6 (}{\cf13 'Model not found'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }with{\cf1  }open{\cf6 (}f{\cf13 "InferenceTime.txt"},{\cf1  }{\cf13 "a"}{\cf6 )}{\cf1  }as{\cf1  }f:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }args.in_seconds:{\cf1 \par
+}{\cf1             }{\cf9 postfix}{\cf1  }{\cf6 =}{\cf1  }{\cf13 's'}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1  }{\cf1 \par
+}{\cf1             }{\cf9 postfix}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'fps'}{\cf1 \par
+}{\cf1         }f.write{\cf6 (}f{\cf13 '\{args.network\}: \{total_time\} \{postfix\} \\n'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }{\cf1 \par
+}}

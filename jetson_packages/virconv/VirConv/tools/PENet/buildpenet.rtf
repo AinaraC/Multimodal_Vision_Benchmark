@@ -1,0 +1,122 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }argparse{\cf1 \par
+}import{\cf1  }os{\cf1 \par
+}{\cf2\i #os.environ["CUDA_VISIBLE_DEVICES"] = '1'}{\cf1 \par
+}import{\cf1  }torch{\cf1 \par
+}{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 model}{\cf1  }import{\cf1  }ENet{\cf1 \par
+}{\cf2\i #from model import PENet_C4_train (Not Implemented)}{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 model}{\cf1  }import{\cf1  }PENet_C1{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 model}{\cf1  }import{\cf1  }PENet_C2{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 model}{\cf1  }import{\cf1  }PENet_C4{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 dataloaders.kitti_loader}{\cf1  }import{\cf1  }KittiDepth{\cf1 \par
+}import{\cf1  }time{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Default self for test completion VirConv}{\cf1 \par
+}class{\cf1  }build_completion_model{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,network_model{\cf6 =}{\cf13 'pe'},workers{\cf6 =}{\cf20 4},epochs{\cf6 =}{\cf20 100},start_epoch{\cf6 =}{\cf20 0},start_epoch_bias{\cf6 =}{\cf20 0},criterion{\cf6 =}{\cf13 'l2'},batch_size{\cf6 =}{\cf20 1},lr{\cf6 =}1e-3,weight_decay{\cf6 =}1e-6,print_freq{\cf6 =}{\cf20 10},resume{\cf6 =}{\cf13 ''},data_folder{\cf6 =}{\cf13 '/data/dataset/kitti_depth/depth'},data_folder_rgb{\cf6 =}{\cf13 '/data/dataset/kitti_raw'},data_folder_save{\cf6 =}{\cf13 ''},detpath{\cf6 =}{\cf13 '/VirConv/data/kitti/training'},input{\cf6 =}{\cf13 'rgbd'},val{\cf6 =}{\cf13 'select'},jitter{\cf6 =}{\cf20 0}.1,rank_metric{\cf6 =}{\cf13 'rmse'},evaluate{\cf6 =}{\cf13 '/VirConv/tools/PENet/pe.pth.tar'},freeze_backbone{\cf6 =}False,test{\cf6 =}True,cpu{\cf6 =}False,not_random_crop{\cf6 =}False,random_crop_height{\cf6 =}{\cf20 320},random_crop_width{\cf6 =}{\cf20 1216},convolutional_layer_encoding{\cf6 =}{\cf13 'xyz'},dilation_rate{\cf6 =}{\cf20 2},result{\cf6 =}os.path.join{\cf6 (}{\cf13 '..'},{\cf1  }{\cf13 'results'}{\cf6 )},{\cf1  }{\cf9 val_h}{\cf6 =}{\cf20 352},val_w{\cf6 =}{\cf20 1216}{\cf6 )}:{\cf1 \par
+}{\cf1         }self.network_model{\cf1  }{\cf6 =}{\cf1  }network_model{\cf1 \par
+}{\cf1         }self.workers{\cf1  }{\cf6 =}{\cf1  }workers{\cf1 \par
+}{\cf1         }self.epochs{\cf1  }{\cf6 =}{\cf1  }epochs{\cf1 \par
+}{\cf1         }self.start_epoch{\cf1  }{\cf6 =}{\cf1  }start_epoch{\cf1 \par
+}{\cf1         }self.start_epoch_bias{\cf1  }{\cf6 =}{\cf1  }start_epoch_bias{\cf1 \par
+}{\cf1         }self.criterion{\cf1  }{\cf6 =}{\cf1  }criterion{\cf1 \par
+}{\cf1         }self.batch_size{\cf1  }{\cf6 =}{\cf1  }batch_size{\cf1 \par
+}{\cf1         }self.lr{\cf1  }{\cf6 =}{\cf1  }lr{\cf1 \par
+}{\cf1         }self.weight_decay{\cf1  }{\cf6 =}{\cf1  }weight_decay{\cf1 \par
+}{\cf1         }self.print_freq{\cf1  }{\cf6 =}{\cf1  }print_freq{\cf1 \par
+}{\cf1         }self.resume{\cf1  }{\cf6 =}{\cf1  }resume{\cf1 \par
+}{\cf1         }self.data_folder{\cf1  }{\cf6 =}{\cf1  }data_folder{\cf1 \par
+}{\cf1         }self.data_folder_rgb{\cf1  }{\cf6 =}{\cf1  }data_folder_rgb{\cf1 \par
+}{\cf1         }self.data_folder_save{\cf1  }{\cf6 =}{\cf1  }{\cf13 ''}{\cf1 \par
+}{\cf1         }self.detpath{\cf1  }{\cf6 =}{\cf1  }detpath{\cf1 \par
+}{\cf1         }self.input{\cf1  }{\cf6 =}{\cf1  }input{\cf1 \par
+}{\cf1         }self.val{\cf1  }{\cf6 =}{\cf1  }val{\cf1 \par
+}{\cf1         }self.jitter{\cf1  }{\cf6 =}{\cf1  }jitter{\cf1 \par
+}{\cf1         }self.rank_metric{\cf1  }{\cf6 =}{\cf1  }rank_metric{\cf1 \par
+}{\cf1         }self.evaluate{\cf1  }{\cf6 =}{\cf1  }evaluate{\cf1 \par
+}{\cf1         }self.freeze_backbone{\cf1  }{\cf6 =}{\cf1  }freeze_backbone{\cf1 \par
+}{\cf1         }self.test{\cf1  }{\cf6 =}{\cf1  }test{\cf1 \par
+}{\cf1         }self.cpu{\cf1  }{\cf6 =}{\cf1  }cpu{\cf1 \par
+}{\cf1         }self.not_random_crop{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }self.random_crop_height{\cf1  }{\cf6 =}{\cf1  }random_crop_height{\cf1 \par
+}{\cf1         }self.random_crop_width{\cf1  }{\cf6 =}{\cf1  }random_crop_width{\cf1 \par
+}{\cf1         }self.convolutional_layer_encoding{\cf1  }{\cf6 =}{\cf1  }convolutional_layer_encoding{\cf1 \par
+}{\cf1         }self.dilation_rate{\cf1  }{\cf6 =}{\cf1  }dilation_rate{\cf1 \par
+}{\cf1         }self.result{\cf1  }{\cf6 =}{\cf1  }result{\cf1 \par
+}{\cf1         }self.use_rgb{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf13 'rgb'}{\cf1  }{\cf3\b in}{\cf1  }self.input{\cf6 )}{\cf1 \par
+}{\cf1         }self.use_d{\cf1  }{\cf6 =}{\cf1  }{\cf13 'd'}{\cf1  }{\cf3\b in}{\cf1  }self.input{\cf1 \par
+}{\cf1         }self.use_g{\cf1  }{\cf6 =}{\cf1  }{\cf13 'g'}{\cf1  }{\cf3\b in}{\cf1  }self.input{\cf1 \par
+}{\cf1         }self.val_h{\cf1  }{\cf6 =}{\cf1  }val_h{\cf1 \par
+}{\cf1         }self.val_w{\cf1  }{\cf6 =}{\cf1  }val_w{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Create a model to measure de test completion latency}{\cf1 \par
+}{\cf1     }def{\cf1  }create_model{\cf6 (}self{\cf6 )}:{\cf1 \par
+}{\cf1         }print{\cf6 (}{\cf13 "Building test completion model..."}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 cuda}{\cf1  }{\cf6 =}{\cf1  }torch.cuda.is_available{\cf6 (}{\cf6 )}{\cf1  }and{\cf1  }not{\cf1  }self.cpu{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }cuda:{\cf1 \par
+}{\cf1             }import{\cf1  }torch.backends.cudnn{\cf1  }as{\cf1  }cudnn{\cf1 \par
+}{\cf1             }cudnn.benchmark{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }{\cf9 device}{\cf1  }{\cf6 =}{\cf1  }torch.device{\cf6 (}{\cf13 "cuda"}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 device}{\cf1  }{\cf6 =}{\cf1  }torch.device{\cf6 (}{\cf13 "cpu"}{\cf6 )}{\cf1 \par
+}{\cf1         }print{\cf6 (}{\cf13 "=> using '\{\}' for computation."}.format{\cf6 (}device{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 checkpoint}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1         }{\cf9 is_eval}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf9 self_new}{\cf1  }{\cf6 =}{\cf1  }self{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }os.path.isfile{\cf6 (}self.evaluate{\cf6 )}:{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf13 "=> loading checkpoint '\{\}' ... "}.format{\cf6 (}self.evaluate{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 end}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 checkpoint}{\cf1  }{\cf6 =}{\cf1  }torch.load{\cf6 (}self.evaluate,{\cf1  }{\cf9 map_location}{\cf6 =}device{\cf6 )}{\cf1 \par
+}{\cf1             }#self{\cf1  }{\cf6 =}{\cf1  }checkpoint{\cf6 [}{\cf13 'self'}{\cf6 ]}{\cf1 \par
+}{\cf1             }self.start_epoch{\cf1  }{\cf6 =}{\cf1  }checkpoint{\cf6 [}{\cf13 'epoch'}{\cf6 ]}{\cf1  }+{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }self.data_folder{\cf1  }{\cf6 =}{\cf1  }self_new.data_folder{\cf1 \par
+}{\cf1             }self.val{\cf1  }{\cf6 =}{\cf1  }self_new.val{\cf1 \par
+}{\cf1             }{\cf9 is_eval}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf13 "Completed."}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 is_eval}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }print{\cf6 (}{\cf13 "No model found at '\{\}'"}.format{\cf6 (}self.evaluate{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }print{\cf6 (}{\cf13 "=> creating model and optimizer ... "},{\cf1  }{\cf9 end}{\cf6 =}{\cf13 ''}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 model}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1         }{\cf9 penet_accelerated}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf6 (}self.network_model{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'e'}{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 model}{\cf1  }{\cf6 =}{\cf1  }ENet{\cf6 (}self{\cf6 )}.to{\cf6 (}device{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}self.dilation_rate{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 model}{\cf1  }{\cf6 =}{\cf1  }PENet_C1{\cf6 (}self{\cf6 )}.to{\cf6 (}device{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 penet_accelerated}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }{\cf3\b elif}{\cf1  }{\cf6 (}self.dilation_rate{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 2}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 model}{\cf1  }{\cf6 =}{\cf1  }PENet_C2{\cf6 (}self{\cf6 )}.to{\cf6 (}device{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 penet_accelerated}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }{\cf3\b elif}{\cf1  }{\cf6 (}self.dilation_rate{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 4}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 model}{\cf1  }{\cf6 =}{\cf1  }PENet_C4{\cf6 (}self{\cf6 )}.to{\cf6 (}device{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 penet_accelerated}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf6 (}{\cf9 penet_accelerated}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }True{\cf6 )}:{\cf1 \par
+}{\cf1             }model.encoder3.requires_grad{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1             }model.encoder5.requires_grad{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1             }model.encoder7.requires_grad{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1 \par
+}{\cf1         }model.load_state_dict{\cf6 (}checkpoint{\cf6 [}{\cf13 'model'}{\cf6 ]},{\cf1  }{\cf9 strict}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1         }#optimizer.load_state_dict{\cf6 (}checkpoint{\cf6 [}{\cf13 'optimizer'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }print{\cf6 (}{\cf13 "=> checkpoint state loaded."}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 test_dataset}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1         }{\cf9 test_loader}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1         }{\cf9 test_completion_dataset}{\cf1  }{\cf6 =}{\cf1  }KittiDepth{\cf6 (}{\cf13 'test_completion'},{\cf1  }self{\cf1  }{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 test_loader}{\cf1  }{\cf6 =}{\cf1  }torch.utils.data.DataLoader{\cf6 (}{\cf1 \par
+}{\cf1             }test_completion_dataset,{\cf1 \par
+}{\cf1             }{\cf9 batch_size}{\cf6 =}{\cf20 1},{\cf1 \par
+}{\cf1             }{\cf9 shuffle}{\cf6 =}False,{\cf1 \par
+}{\cf1             }{\cf9 num_workers}{\cf6 =}{\cf20 1},{\cf1 \par
+}{\cf1             }{\cf9 pin_memory}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }model,{\cf1  }test_loader{\cf1 \par
+}{\cf1 \par
+}{\cf3\b if}{\cf1  }{\cf9 __name__}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 '__main__'}:{\cf1 \par
+}{\cf1     }{\cf9 model_creator}{\cf1  }{\cf6 =}{\cf1  }build_completion_model{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }model,{\cf1  }{\cf9 test_loader}{\cf1  }{\cf6 =}{\cf1  }model_creator.create_model{\cf6 (}{\cf6 )}{\cf1 \par
+}}

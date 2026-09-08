@@ -1,0 +1,92 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }argparse{\cf1 \par
+}import{\cf1  }numpy{\cf1  }as{\cf1  }np{\cf1 \par
+}import{\cf1  }os{\cf1 \par
+}import{\cf1  }pickle{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 pathlib}{\cf1  }import{\cf1  }Path{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 PIL}{\cf1  }import{\cf1  }Image{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 Camera_corruptions}{\cf1  }import{\cf1  }ImageAddSnow,ImageAddFog,ImageAddRain,ImageAddDarkness,{\cf1  }ImageAddSunlight{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 tqdm}{\cf1  }import{\cf1  }tqdm{\cf1 \par
+}{\cf1 \par
+}{\cf9 IMG_CORRUPTIONS}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'snow'},{\cf1  }{\cf13 'fog'},{\cf1  }{\cf13 'rain'},{\cf1  }{\cf13 'sunlight'},{\cf1  }{\cf13 'darkness'},{\cf1  }{\cf13 'no_camera'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }parse_arguments{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 parser}{\cf1  }{\cf6 =}{\cf1  }argparse.ArgumentParser{\cf6 (}{\cf9 description}{\cf6 =}{\cf13 'Generate corrupted kitti dataset for pointcloud data'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '-c'},{\cf1  }{\cf13 '--corruption'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'corruption type'},{\cf1  }{\cf9 type}{\cf6 =}str,{\cf1 \par
+}{\cf1                         }{\cf9 choices}{\cf6 =}IMG_CORRUPTIONS,{\cf1  }{\cf9 default}{\cf6 =}{\cf13 'fog'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '-r'},{\cf1  }{\cf13 '--dataset_root'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'root folder of dataset'},{\cf1  }{\cf9 type}{\cf6 =}str,{\cf1 \par
+}{\cf1                         }{\cf9 default}{\cf6 =}{\cf13 '/media/ainara/ainara/kitti_dataset_organizado/kitti'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '-s'},{\cf1  }{\cf13 '--save_root'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'savefolder of dataset'},{\cf1  }{\cf9 type}{\cf6 =}str,{\cf1 \par
+}{\cf1                         }{\cf9 default}{\cf6 =}{\cf13 '/media/ainara/ainara/kitti_dataset_organizado/kittiCorrupt'}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '-f'},{\cf1  }{\cf13 '--severity'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'severity level \{1, 2, 3, 4, 5\}'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1 \par
+}{\cf1                         }{\cf9 default}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1     }parser.add_argument{\cf6 (}{\cf13 '--seed'},{\cf1  }{\cf9 help}{\cf6 =}{\cf13 'random seed'},{\cf1  }{\cf9 type}{\cf6 =}int,{\cf1 \par
+}{\cf1                         }{\cf9 default}{\cf6 =}{\cf20 2025}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 arguments}{\cf1  }{\cf6 =}{\cf1  }parser.parse_args{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }arguments{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }load_image{\cf6 (}image_path{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 image}{\cf1  }{\cf6 =}{\cf1  }Image.open{\cf6 (}image_path{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }image.mode{\cf1  }!{\cf6 =}{\cf1  }{\cf13 'RGB'}:{\cf1 \par
+}{\cf1         }{\cf9 image}{\cf1  }{\cf6 =}{\cf1  }image.convert{\cf6 (}{\cf13 'RGB'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 image_np}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}image{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 image_rgb_uint8_np}{\cf1  }{\cf6 =}{\cf1  }image_np.astype{\cf6 (}np.uint8{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }image_rgb_uint8_np{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }save_image{\cf6 (}result_path,{\cf1  }image_aug{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 image_aug}{\cf1  }{\cf6 =}{\cf1  }Image.fromarray{\cf6 (}image_aug{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 path}{\cf1  }{\cf6 =}{\cf1  }os.path.join{\cf6 (}result_path{\cf6 )}{\cf1 \par
+}{\cf1     }image_aug.save{\cf6 (}path{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }main{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 args}{\cf1  }{\cf6 =}{\cf1  }parse_arguments{\cf6 (}{\cf6 )}{\cf1     }{\cf1 \par
+}{\cf1     }print{\cf6 (}f{\cf13 'Preparing image dataset for \{args.corruption\} with severity \{args.severity\}'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }print{\cf6 (}f{\cf13 'Using \{args.seed\} as numpy random seed'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 imageset}{\cf1  }{\cf6 =}{\cf1  }os.path.join{\cf6 (}args.dataset_root,{\cf1  }{\cf13 "kitti_infos_val.pkl"}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }with{\cf1  }open{\cf6 (}imageset,{\cf1  }{\cf13 'rb'}{\cf6 )}{\cf1  }as{\cf1  }f:{\cf1 \par
+}{\cf1         }{\cf9 infos}{\cf1  }{\cf6 =}{\cf1  }pickle.load{\cf6 (}f{\cf6 )}{\cf1   }{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 save_path}{\cf1  }{\cf6 =}{\cf1  }os.path.join{\cf6 (}args.save_root,{\cf1  }args.corruption,{\cf1  }f{\cf13 'severity_\{args.severity\}'},{\cf1  }{\cf13 'training/image_2'}{\cf6 )}{\cf1 \par
+}{\cf1     }Path{\cf6 (}save_path{\cf6 )}.mkdir{\cf6 (}{\cf9 parents}{\cf6 =}True,{\cf1  }{\cf9 exist_ok}{\cf6 =}True{\cf6 )}{\cf1   }{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 sim}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }args.corruption{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'fog'}:{\cf1 \par
+}{\cf1         }{\cf9 sim}{\cf1  }{\cf6 =}{\cf1  }ImageAddFog{\cf6 (}args.severity,{\cf1  }args.seed{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b elif}{\cf1  }args.corruption{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'rain'}:{\cf1 \par
+}{\cf1         }{\cf9 sim}{\cf1  }{\cf6 =}{\cf1  }ImageAddRain{\cf6 (}args.severity,args.seed{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b elif}{\cf1  }args.corruption{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'snow'}:{\cf1 \par
+}{\cf1         }{\cf9 sim}{\cf1  }{\cf6 =}{\cf1  }ImageAddSnow{\cf6 (}args.severity,{\cf1  }args.seed{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b elif}{\cf1  }args.corruption{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'sunlight'}:{\cf1 \par
+}{\cf1         }{\cf9 sim}{\cf1  }{\cf6 =}{\cf1  }ImageAddSunlight{\cf6 (}args.severity,{\cf1  }args.seed{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b elif}{\cf1  }args.corruption{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'darkness'}:{\cf1 \par
+}{\cf1         }{\cf9 sim}{\cf1  }{\cf6 =}{\cf1  }ImageAddDarkness{\cf6 (}args.severity,{\cf1  }args.seed{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b elif}{\cf1  }args.corruption{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'no_camera'}:{\cf1 \par
+}{\cf1     	}{\cf9 sim}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }raise{\cf1  }NotImplementedError{\cf6 (}{\cf13 'Corruption not implemented'}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }{\cf9 progress_bar}{\cf1  }{\cf6 =}{\cf1  }tqdm{\cf6 (}{\cf9 total}{\cf6 =}len{\cf6 (}infos{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1  }{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }info{\cf1  }{\cf3\b in}{\cf1  }infos:{\cf1 \par
+}{\cf1         }{\cf9 frame_idx}{\cf1  }{\cf6 =}{\cf1  }info{\cf6 [}{\cf13 'image'}{\cf6 ]}{\cf6 [}{\cf13 'image_idx'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 filename}{\cf1  }{\cf6 =}{\cf1  }f{\cf13 '\{frame_idx\}.png'}{\cf1 \par
+}{\cf1         }{\cf9 img}{\cf1  }{\cf6 =}{\cf1  }load_image{\cf6 (}os.path.join{\cf6 (}args.dataset_root,{\cf13 'training/image_2'},filename{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }args.corruption{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'no_camera'}:{\cf1 \par
+}{\cf1         	}{\cf9 save_path}{\cf1  }{\cf6 =}{\cf1  }os.path.join{\cf6 (}args.save_root,{\cf1  }args.corruption,{\cf1  }{\cf13 'training/image_2'}{\cf6 )}{\cf1 \par
+}{\cf1         	}{\cf9 img_aug}{\cf1  }{\cf6 =}{\cf1  }np.zeros_like{\cf6 (}original{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1         	}{\cf9 img_aug}{\cf1  }{\cf6 =}{\cf1  }sim{\cf6 (}img{\cf6 )}{\cf1 \par
+}{\cf1         }save_image{\cf6 (}os.path.join{\cf6 (}save_path,{\cf1  }filename{\cf6 )},{\cf1  }img_aug{\cf6 )}{\cf1 \par
+}{\cf1         }progress_bar.update{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf3\b if}{\cf1  }{\cf9 __name__}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 '__main__'}:{\cf1 \par
+}{\cf1     }main{\cf6 (}{\cf6 )}{\cf1 \par
+}}

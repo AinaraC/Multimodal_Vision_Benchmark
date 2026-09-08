@@ -1,0 +1,861 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }io{\cf1  }as{\cf1  }sysio{\cf1 \par
+}{\cf1 \par
+}import{\cf1  }numba{\cf1 \par
+}import{\cf1  }numpy{\cf1  }as{\cf1  }np{\cf1 \par
+}{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 .rotate_iou}{\cf1  }import{\cf1  }rotate_iou_gpu_eval{\cf1 \par
+}import{\cf1  }pickle{\cf1 \par
+}import{\cf1  }pandas{\cf1  }as{\cf1  }pd{\cf1 \par
+}{\cf1 \par
+}@numba.jit{\cf1 \par
+}def{\cf1  }get_thresholds{\cf6 (}scores:{\cf1  }np.ndarray,{\cf1  }num_gt,{\cf1  }{\cf9 num_sample_pts}{\cf6 =}{\cf20 41}{\cf6 )}:{\cf1 \par
+}{\cf1     }scores.sort{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 scores}{\cf1  }{\cf6 =}{\cf1  }scores{\cf6 [}::-1{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 current_recall}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf9 thresholds}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i,{\cf1  }score{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}scores{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 l_recall}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }/{\cf1  }num_gt{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }i{\cf1  }<{\cf1  }{\cf6 (}len{\cf6 (}scores{\cf6 )}{\cf1  }-{\cf1  }{\cf20 1}{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 r_recall}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}i{\cf1  }+{\cf1  }{\cf20 2}{\cf6 )}{\cf1  }/{\cf1  }num_gt{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 r_recall}{\cf1  }{\cf6 =}{\cf1  }l_recall{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf6 (}{\cf6 (}{\cf6 (}r_recall{\cf1  }-{\cf1  }current_recall{\cf6 )}{\cf1  }<{\cf1  }{\cf6 (}current_recall{\cf1  }-{\cf1  }l_recall{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }and{\cf1  }{\cf6 (}i{\cf1  }<{\cf1  }{\cf6 (}len{\cf6 (}scores{\cf6 )}{\cf1  }-{\cf1  }{\cf20 1}{\cf6 )}{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b continue}{\cf1 \par
+}{\cf1         }#{\cf1  }{\cf9 recall}{\cf1  }{\cf6 =}{\cf1  }l_recall{\cf1 \par
+}{\cf1         }thresholds.append{\cf6 (}score{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 current_recall}{\cf1  }{\cf6 +=}{\cf1  }{\cf20 1}{\cf1  }/{\cf1  }{\cf6 (}num_sample_pts{\cf1  }-{\cf1  }{\cf20 1}.0{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }thresholds{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }clean_data{\cf6 (}gt_anno,{\cf1  }dt_anno,{\cf1  }current_class,{\cf1  }difficulty,{\cf1  }eval_params{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 CLASS_NAMES}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'car'},{\cf1  }{\cf13 'pedestrian'},{\cf1  }{\cf13 'cyclist'},{\cf1  }{\cf13 'van'},{\cf1  }{\cf13 'person_sitting'},{\cf1  }{\cf13 'truck'}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 MIN_HEIGHT}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 40},{\cf1  }{\cf20 25},{\cf1  }{\cf20 25}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 MAX_OCCLUSION}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 1},{\cf1  }{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 MAX_TRUNCATION}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.15,{\cf1  }{\cf20 0}.3,{\cf1  }{\cf20 0}.5{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 MIN_DISTANCE}{\cf1  }{\cf6 =}{\cf1  }eval_params{\cf6 [}{\cf13 "min_distance"}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 MAX_DISTANCE}{\cf1  }{\cf6 =}{\cf1  }eval_params{\cf6 [}{\cf13 "max_distance"}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }dc_bboxes,{\cf1  }ignored_gt,{\cf1  }{\cf9 ignored_dt}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 current_cls_name}{\cf1  }{\cf6 =}{\cf1  }CLASS_NAMES{\cf6 [}current_class{\cf6 ]}.lower{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 num_gt}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}gt_anno{\cf6 [}{\cf13 "name"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 num_dt}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}dt_anno{\cf6 [}{\cf13 "name"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 num_valid_gt}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}num_gt{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 bbox}{\cf1  }{\cf6 =}{\cf1  }gt_anno{\cf6 [}{\cf13 "bbox"}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 gt_name}{\cf1  }{\cf6 =}{\cf1  }gt_anno{\cf6 [}{\cf13 "name"}{\cf6 ]}{\cf6 [}i{\cf6 ]}.lower{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 height}{\cf1  }{\cf6 =}{\cf1  }bbox{\cf6 [}{\cf20 3}{\cf6 ]}{\cf1  }-{\cf1  }bbox{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 distance}{\cf1  }{\cf6 =}{\cf1  }gt_anno{\cf6 [}{\cf13 "location"}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1                                     }#{\cf1  }TODO:{\cf1  }z-value{\cf1  }or{\cf1  }eucledian{\cf1  }distance?{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf1  }-1{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf6 (}{\cf9 gt_name}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }current_cls_name{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }{\cf6 (}{\cf9 current_cls_name}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 "Pedestrian"}.lower{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1               }and{\cf1  }{\cf13 "Person_sitting"}.lower{\cf6 (}{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }gt_name{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }{\cf6 (}{\cf9 current_cls_name}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 "Car"}.lower{\cf6 (}{\cf6 )}{\cf1  }and{\cf1  }{\cf13 "Van"}.lower{\cf6 (}{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }gt_name{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf1  }-1{\cf1 \par
+}{\cf1         }{\cf9 ignore}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf6 (}{\cf6 (}gt_anno{\cf6 [}{\cf13 "occluded"}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf1  }>{\cf1  }MAX_OCCLUSION{\cf6 [}difficulty{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }or{\cf1  }{\cf6 (}gt_anno{\cf6 [}{\cf13 "truncated"}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf1  }>{\cf1  }MAX_TRUNCATION{\cf6 [}difficulty{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }or{\cf1  }{\cf6 (}height{\cf1  }<{\cf6 =}{\cf1  }MIN_HEIGHT{\cf6 [}difficulty{\cf6 ]}{\cf6 )}{\cf1  }or{\cf1  }{\cf6 (}distance{\cf1  }<{\cf1  }MIN_DISTANCE{\cf6 )}{\cf1  }or{\cf1  }{\cf6 (}distance{\cf1  }>{\cf1  }MAX_DISTANCE{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1             }#{\cf1  }{\cf3\b if}{\cf1  }gt_anno{\cf6 [}{\cf13 "difficulty"}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf1  }>{\cf1  }difficulty{\cf1  }or{\cf1  }gt_anno{\cf6 [}{\cf13 "difficulty"}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }-1:{\cf1 \par
+}{\cf1             }{\cf9 ignore}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}{\cf1  }and{\cf1  }not{\cf1  }ignore:{\cf1 \par
+}{\cf1             }ignored_gt.append{\cf6 (}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 num_valid_gt}{\cf1  }{\cf6 +=}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }{\cf6 (}{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf1  }or{\cf1  }{\cf6 (}ignore{\cf1  }and{\cf1  }{\cf6 (}{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}{\cf6 )}{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1             }ignored_gt.append{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }ignored_gt.append{\cf6 (}-1{\cf6 )}{\cf1 \par
+}{\cf1     }#{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}num_gt{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }gt_anno{\cf6 [}{\cf13 "name"}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 "DontCare"}:{\cf1 \par
+}{\cf1             }dc_bboxes.append{\cf6 (}gt_anno{\cf6 [}{\cf13 "bbox"}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}num_dt{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf6 (}dt_anno{\cf6 [}{\cf13 "name"}{\cf6 ]}{\cf6 [}i{\cf6 ]}.lower{\cf6 (}{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }current_cls_name{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf1  }-1{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 height}{\cf1  }{\cf6 =}{\cf1  }abs{\cf6 (}dt_anno{\cf6 [}{\cf13 "bbox"}{\cf6 ]}{\cf6 [}i,{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }-{\cf1  }dt_anno{\cf6 [}{\cf13 "bbox"}{\cf6 ]}{\cf6 [}i,{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 distance}{\cf1  }{\cf6 =}{\cf1  }dt_anno{\cf6 [}{\cf13 "location"}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1  }{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf6 (}height{\cf1  }<{\cf1  }MIN_HEIGHT{\cf6 [}difficulty{\cf6 ]}{\cf6 )}{\cf1  }or{\cf1  }{\cf6 (}distance{\cf1  }<{\cf1  }MIN_DISTANCE{\cf6 )}{\cf1  }or{\cf1  }{\cf6 (}distance{\cf1  }>{\cf1  }MAX_DISTANCE{\cf6 )}:{\cf1 \par
+}{\cf1             }ignored_dt.append{\cf6 (}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }{\cf9 valid_class}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}:{\cf1 \par
+}{\cf1             }ignored_dt.append{\cf6 (}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }ignored_dt.append{\cf6 (}-1{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }num_valid_gt,{\cf1  }ignored_gt,{\cf1  }ignored_dt,{\cf1  }dc_bboxes{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}@numba.jit{\cf6 (}{\cf9 nopython}{\cf6 =}True{\cf6 )}{\cf1 \par
+}def{\cf1  }image_box_overlap{\cf6 (}boxes,{\cf1  }query_boxes,{\cf1  }{\cf9 criterion}{\cf6 =}-1{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 N}{\cf1  }{\cf6 =}{\cf1  }boxes.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 K}{\cf1  }{\cf6 =}{\cf1  }query_boxes.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 overlaps}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}N,{\cf1  }K{\cf6 )},{\cf1  }{\cf9 dtype}{\cf6 =}boxes.dtype{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }k{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}K{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 qbox_area}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf6 (}query_boxes{\cf6 [}k,{\cf1  }{\cf20 2}{\cf6 ]}{\cf1  }-{\cf1  }query_boxes{\cf6 [}k,{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1  }*{\cf1 \par
+}{\cf1                      }{\cf6 (}query_boxes{\cf6 [}k,{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }-{\cf1  }query_boxes{\cf6 [}k,{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }n{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}N{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 iw}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}min{\cf6 (}boxes{\cf6 [}n,{\cf1  }{\cf20 2}{\cf6 ]},{\cf1  }query_boxes{\cf6 [}k,{\cf1  }{\cf20 2}{\cf6 ]}{\cf6 )}{\cf1  }-{\cf1 \par
+}{\cf1                   }max{\cf6 (}boxes{\cf6 [}n,{\cf1  }{\cf20 0}{\cf6 ]},{\cf1  }query_boxes{\cf6 [}k,{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }iw{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf9 ih}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}min{\cf6 (}boxes{\cf6 [}n,{\cf1  }{\cf20 3}{\cf6 ]},{\cf1  }query_boxes{\cf6 [}k,{\cf1  }{\cf20 3}{\cf6 ]}{\cf6 )}{\cf1  }-{\cf1 \par
+}{\cf1                       }max{\cf6 (}boxes{\cf6 [}n,{\cf1  }{\cf20 1}{\cf6 ]},{\cf1  }query_boxes{\cf6 [}k,{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }ih{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }{\cf9 criterion}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }-1:{\cf1 \par
+}{\cf1                         }{\cf9 ua}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf1 \par
+}{\cf1                             }{\cf6 (}boxes{\cf6 [}n,{\cf1  }{\cf20 2}{\cf6 ]}{\cf1  }-{\cf1  }boxes{\cf6 [}n,{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1  }*{\cf1 \par
+}{\cf1                             }{\cf6 (}boxes{\cf6 [}n,{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }-{\cf1  }boxes{\cf6 [}n,{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf1  }+{\cf1  }qbox_area{\cf1  }-{\cf1  }iw{\cf1  }*{\cf1  }ih{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b elif}{\cf1  }{\cf9 criterion}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                         }{\cf9 ua}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf6 (}boxes{\cf6 [}n,{\cf1  }{\cf20 2}{\cf6 ]}{\cf1  }-{\cf1  }boxes{\cf6 [}n,{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1  }*{\cf1 \par
+}{\cf1                               }{\cf6 (}boxes{\cf6 [}n,{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }-{\cf1  }boxes{\cf6 [}n,{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b elif}{\cf1  }{\cf9 criterion}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}:{\cf1 \par
+}{\cf1                         }{\cf9 ua}{\cf1  }{\cf6 =}{\cf1  }qbox_area{\cf1 \par
+}{\cf1                     }{\cf3\b else}:{\cf1 \par
+}{\cf1                         }{\cf9 ua}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}.0{\cf1 \par
+}{\cf1                     }overlaps{\cf6 [}n,{\cf1  }k{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }iw{\cf1  }*{\cf1  }ih{\cf1  }/{\cf1  }ua{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }overlaps{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }bev_box_overlap{\cf6 (}boxes,{\cf1  }qboxes,{\cf1  }{\cf9 criterion}{\cf6 =}-1{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 riou}{\cf1  }{\cf6 =}{\cf1  }rotate_iou_gpu_eval{\cf6 (}boxes,{\cf1  }qboxes,{\cf1  }criterion{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }riou{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}@numba.jit{\cf6 (}{\cf9 nopython}{\cf6 =}True,{\cf1  }{\cf9 parallel}{\cf6 =}True{\cf6 )}{\cf1 \par
+}def{\cf1  }d3_box_overlap_kernel{\cf6 (}boxes,{\cf1  }qboxes,{\cf1  }rinc,{\cf1  }{\cf9 criterion}{\cf6 =}-1{\cf6 )}:{\cf1 \par
+}{\cf1     }#{\cf1  }ONLY{\cf1  }support{\cf1  }overlap{\cf1  }{\cf3\b in}{\cf1  }CAMERA,{\cf1  }not{\cf1  }lider.{\cf1 \par
+}{\cf1     }N,{\cf1  }{\cf9 K}{\cf1  }{\cf6 =}{\cf1  }boxes.shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }qboxes.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}N{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }j{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}K{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }rinc{\cf6 [}i,{\cf1  }j{\cf6 ]}{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }#{\cf1  }{\cf9 iw}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}min{\cf6 (}boxes{\cf6 [}i,{\cf1  }{\cf20 1}{\cf6 ]}{\cf1  }+{\cf1  }boxes{\cf6 [}i,{\cf1  }{\cf20 4}{\cf6 ]},{\cf1  }qboxes{\cf6 [}j,{\cf1  }{\cf20 1}{\cf6 ]}{\cf1  }+{\cf1 \par
+}{\cf1                 }#{\cf1          }qboxes{\cf6 [}j,{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )}{\cf1  }-{\cf1  }max{\cf6 (}boxes{\cf6 [}i,{\cf1  }{\cf20 1}{\cf6 ]},{\cf1  }qboxes{\cf6 [}j,{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 iw}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}min{\cf6 (}boxes{\cf6 [}i,{\cf1  }{\cf20 1}{\cf6 ]},{\cf1  }qboxes{\cf6 [}j,{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf1  }-{\cf1  }max{\cf6 (}{\cf1 \par
+}{\cf1                     }boxes{\cf6 [}i,{\cf1  }{\cf20 1}{\cf6 ]}{\cf1  }-{\cf1  }boxes{\cf6 [}i,{\cf1  }{\cf20 4}{\cf6 ]},{\cf1  }qboxes{\cf6 [}j,{\cf1  }{\cf20 1}{\cf6 ]}{\cf1  }-{\cf1  }qboxes{\cf6 [}j,{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }iw{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                     }{\cf9 area1}{\cf1  }{\cf6 =}{\cf1  }boxes{\cf6 [}i,{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }*{\cf1  }boxes{\cf6 [}i,{\cf1  }{\cf20 4}{\cf6 ]}{\cf1  }*{\cf1  }boxes{\cf6 [}i,{\cf1  }{\cf20 5}{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf9 area2}{\cf1  }{\cf6 =}{\cf1  }qboxes{\cf6 [}j,{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }*{\cf1  }qboxes{\cf6 [}j,{\cf1  }{\cf20 4}{\cf6 ]}{\cf1  }*{\cf1  }qboxes{\cf6 [}j,{\cf1  }{\cf20 5}{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf9 inc}{\cf1  }{\cf6 =}{\cf1  }iw{\cf1  }*{\cf1  }rinc{\cf6 [}i,{\cf1  }j{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }{\cf9 criterion}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }-1:{\cf1 \par
+}{\cf1                         }{\cf9 ua}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}area1{\cf1  }+{\cf1  }area2{\cf1  }-{\cf1  }inc{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b elif}{\cf1  }{\cf9 criterion}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                         }{\cf9 ua}{\cf1  }{\cf6 =}{\cf1  }area1{\cf1 \par
+}{\cf1                     }{\cf3\b elif}{\cf1  }{\cf9 criterion}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}:{\cf1 \par
+}{\cf1                         }{\cf9 ua}{\cf1  }{\cf6 =}{\cf1  }area2{\cf1 \par
+}{\cf1                     }{\cf3\b else}:{\cf1 \par
+}{\cf1                         }{\cf9 ua}{\cf1  }{\cf6 =}{\cf1  }inc{\cf1 \par
+}{\cf1                     }rinc{\cf6 [}i,{\cf1  }j{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }inc{\cf1  }/{\cf1  }ua{\cf1 \par
+}{\cf1                 }{\cf3\b else}:{\cf1 \par
+}{\cf1                     }rinc{\cf6 [}i,{\cf1  }j{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}.0{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }d3_box_overlap{\cf6 (}boxes,{\cf1  }qboxes,{\cf1  }{\cf9 criterion}{\cf6 =}-1{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 rinc}{\cf1  }{\cf6 =}{\cf1  }rotate_iou_gpu_eval{\cf6 (}boxes{\cf6 [}:,{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 2},{\cf1  }{\cf20 3},{\cf1  }{\cf20 5},{\cf1  }{\cf20 6}{\cf6 ]}{\cf6 ]},{\cf1 \par
+}{\cf1                                }qboxes{\cf6 [}:,{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 2},{\cf1  }{\cf20 3},{\cf1  }{\cf20 5},{\cf1  }{\cf20 6}{\cf6 ]}{\cf6 ]},{\cf1  }{\cf20 2}{\cf6 )}{\cf1 \par
+}{\cf1     }d3_box_overlap_kernel{\cf6 (}boxes,{\cf1  }qboxes,{\cf1  }rinc,{\cf1  }criterion{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }rinc{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}@numba.jit{\cf6 (}{\cf9 nopython}{\cf6 =}True{\cf6 )}{\cf1 \par
+}def{\cf1  }compute_statistics_jit{\cf6 (}overlaps,{\cf1 \par
+}{\cf1                            }gt_datas,{\cf1 \par
+}{\cf1                            }dt_datas,{\cf1 \par
+}{\cf1                            }ignored_gt,{\cf1 \par
+}{\cf1                            }ignored_det,{\cf1 \par
+}{\cf1                            }dc_bboxes,{\cf1 \par
+}{\cf1                            }metric,{\cf1 \par
+}{\cf1                            }min_overlap,{\cf1 \par
+}{\cf1                            }{\cf9 thresh}{\cf6 =}{\cf20 0},{\cf1 \par
+}{\cf1                            }{\cf9 compute_fp}{\cf6 =}False,{\cf1 \par
+}{\cf1                            }{\cf9 compute_aos}{\cf6 =}False{\cf6 )}:{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 det_size}{\cf1  }{\cf6 =}{\cf1  }dt_datas.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 gt_size}{\cf1  }{\cf6 =}{\cf1  }gt_datas.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 dt_scores}{\cf1  }{\cf6 =}{\cf1  }dt_datas{\cf6 [}:,{\cf1  }-1{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 dt_alphas}{\cf1  }{\cf6 =}{\cf1  }dt_datas{\cf6 [}:,{\cf1  }{\cf20 4}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 gt_alphas}{\cf1  }{\cf6 =}{\cf1  }gt_datas{\cf6 [}:,{\cf1  }{\cf20 4}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 dt_bboxes}{\cf1  }{\cf6 =}{\cf1  }dt_datas{\cf6 [}:,{\cf1  }:4{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 gt_bboxes}{\cf1  }{\cf6 =}{\cf1  }gt_datas{\cf6 [}:,{\cf1  }:4{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 assigned_detection}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}False{\cf6 ]}{\cf1  }*{\cf1  }det_size{\cf1 \par
+}{\cf1     }{\cf9 ignored_threshold}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}False{\cf6 ]}{\cf1  }*{\cf1  }det_size{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }compute_fp:{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}det_size{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}dt_scores{\cf6 [}i{\cf6 ]}{\cf1  }<{\cf1  }thresh{\cf6 )}:{\cf1 \par
+}{\cf1                 }ignored_threshold{\cf6 [}i{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1     }{\cf9 NO_DETECTION}{\cf1  }{\cf6 =}{\cf1  }-10000000{\cf1 \par
+}{\cf1     }tp,{\cf1  }fp,{\cf1  }fn,{\cf1  }{\cf9 similarity}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0},{\cf1  }{\cf20 0},{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }#{\cf1  }{\cf9 thresholds}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.0{\cf6 ]}{\cf1 \par
+}{\cf1     }#{\cf1  }{\cf9 delta}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.0{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 thresholds}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}gt_size,{\cf1  }{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 thresh_idx}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf9 delta}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}gt_size,{\cf1  }{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 delta_idx}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}gt_size{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }ignored_gt{\cf6 [}i{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }-1:{\cf1 \par
+}{\cf1             }{\cf3\b continue}{\cf1 \par
+}{\cf1         }{\cf9 det_idx}{\cf1  }{\cf6 =}{\cf1  }-1{\cf1 \par
+}{\cf1         }{\cf9 valid_detection}{\cf1  }{\cf6 =}{\cf1  }NO_DETECTION{\cf1 \par
+}{\cf1         }{\cf9 max_overlap}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf9 assigned_ignored_det}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }j{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}det_size{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}ignored_det{\cf6 [}j{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }-1{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}assigned_detection{\cf6 [}j{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}ignored_threshold{\cf6 [}j{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf3\b continue}{\cf1 \par
+}{\cf1             }{\cf9 overlap}{\cf1  }{\cf6 =}{\cf1  }overlaps{\cf6 [}j,{\cf1  }i{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 dt_score}{\cf1  }{\cf6 =}{\cf1  }dt_scores{\cf6 [}j{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}not{\cf1  }compute_fp{\cf1  }and{\cf1  }{\cf6 (}overlap{\cf1  }>{\cf1  }min_overlap{\cf6 )}{\cf1 \par
+}{\cf1                     }and{\cf1  }dt_score{\cf1  }>{\cf1  }valid_detection{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 det_idx}{\cf1  }{\cf6 =}{\cf1  }j{\cf1 \par
+}{\cf1                 }{\cf9 valid_detection}{\cf1  }{\cf6 =}{\cf1  }dt_score{\cf1 \par
+}{\cf1             }{\cf3\b elif}{\cf1  }{\cf6 (}compute_fp{\cf1  }and{\cf1  }{\cf6 (}overlap{\cf1  }>{\cf1  }min_overlap{\cf6 )}{\cf1 \par
+}{\cf1                   }and{\cf1  }{\cf6 (}overlap{\cf1  }>{\cf1  }max_overlap{\cf1  }or{\cf1  }assigned_ignored_det{\cf6 )}{\cf1 \par
+}{\cf1                   }and{\cf1  }ignored_det{\cf6 [}j{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 max_overlap}{\cf1  }{\cf6 =}{\cf1  }overlap{\cf1 \par
+}{\cf1                 }{\cf9 det_idx}{\cf1  }{\cf6 =}{\cf1  }j{\cf1 \par
+}{\cf1                 }{\cf9 valid_detection}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1                 }{\cf9 assigned_ignored_det}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1             }{\cf3\b elif}{\cf1  }{\cf6 (}compute_fp{\cf1  }and{\cf1  }{\cf6 (}overlap{\cf1  }>{\cf1  }min_overlap{\cf6 )}{\cf1 \par
+}{\cf1                   }and{\cf1  }{\cf6 (}{\cf9 valid_detection}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }NO_DETECTION{\cf6 )}{\cf1 \par
+}{\cf1                   }and{\cf1  }ignored_det{\cf6 [}j{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 det_idx}{\cf1  }{\cf6 =}{\cf1  }j{\cf1 \par
+}{\cf1                 }{\cf9 valid_detection}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1                 }{\cf9 assigned_ignored_det}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf6 (}{\cf9 valid_detection}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }NO_DETECTION{\cf6 )}{\cf1  }and{\cf1  }ignored_gt{\cf6 [}i{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf9 fn}{\cf1  }{\cf6 +=}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }{\cf6 (}{\cf6 (}valid_detection{\cf1  }!{\cf6 =}{\cf1  }NO_DETECTION{\cf6 )}{\cf1 \par
+}{\cf1               }and{\cf1  }{\cf6 (}ignored_gt{\cf6 [}i{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}{\cf1  }or{\cf1  }ignored_det{\cf6 [}det_idx{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1             }assigned_detection{\cf6 [}det_idx{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }valid_detection{\cf1  }!{\cf6 =}{\cf1  }NO_DETECTION:{\cf1 \par
+}{\cf1             }{\cf9 tp}{\cf1  }{\cf6 +=}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }#{\cf1  }thresholds.append{\cf6 (}dt_scores{\cf6 [}det_idx{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1             }thresholds{\cf6 [}thresh_idx{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }dt_scores{\cf6 [}det_idx{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 thresh_idx}{\cf1  }{\cf6 +=}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }compute_aos:{\cf1 \par
+}{\cf1                 }#{\cf1  }delta.append{\cf6 (}gt_alphas{\cf6 [}i{\cf6 ]}{\cf1  }-{\cf1  }dt_alphas{\cf6 [}det_idx{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }delta{\cf6 [}delta_idx{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }gt_alphas{\cf6 [}i{\cf6 ]}{\cf1  }-{\cf1  }dt_alphas{\cf6 [}det_idx{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 delta_idx}{\cf1  }{\cf6 +=}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }assigned_detection{\cf6 [}det_idx{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }compute_fp:{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}det_size{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf6 (}not{\cf1  }{\cf6 (}assigned_detection{\cf6 [}i{\cf6 ]}{\cf1  }or{\cf1  }ignored_det{\cf6 [}i{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }-1{\cf1 \par
+}{\cf1                      }or{\cf1  }ignored_det{\cf6 [}i{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}{\cf1  }or{\cf1  }ignored_threshold{\cf6 [}i{\cf6 ]}{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 fp}{\cf1  }{\cf6 +=}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1         }{\cf9 nstuff}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf9 metric}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf9 overlaps_dt_dc}{\cf1  }{\cf6 =}{\cf1  }image_box_overlap{\cf6 (}dt_bboxes,{\cf1  }dc_bboxes,{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}dc_bboxes.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf3\b for}{\cf1  }j{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}det_size{\cf6 )}:{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }{\cf6 (}assigned_detection{\cf6 [}j{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1                         }{\cf3\b continue}{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }{\cf6 (}ignored_det{\cf6 [}j{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }-1{\cf1  }or{\cf1  }ignored_det{\cf6 [}j{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}{\cf6 )}:{\cf1 \par
+}{\cf1                         }{\cf3\b continue}{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }{\cf6 (}ignored_threshold{\cf6 [}j{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1                         }{\cf3\b continue}{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }overlaps_dt_dc{\cf6 [}j,{\cf1  }i{\cf6 ]}{\cf1  }>{\cf1  }min_overlap:{\cf1 \par
+}{\cf1                         }assigned_detection{\cf6 [}j{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1                         }{\cf9 nstuff}{\cf1  }{\cf6 +=}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1         }fp{\cf1  }-{\cf6 =}{\cf1  }nstuff{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }compute_aos:{\cf1 \par
+}{\cf1             }{\cf9 tmp}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}fp{\cf1  }+{\cf1  }delta_idx,{\cf1  }{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }#{\cf1  }{\cf9 tmp}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }*{\cf1  }fp{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}delta_idx{\cf6 )}:{\cf1 \par
+}{\cf1                 }tmp{\cf6 [}i{\cf1  }+{\cf1  }fp{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf20 1}.0{\cf1  }+{\cf1  }np.cos{\cf6 (}delta{\cf6 [}i{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1  }/{\cf1  }{\cf20 2}.0{\cf1 \par
+}{\cf1                 }#{\cf1  }tmp.append{\cf6 (}{\cf6 (}{\cf20 1}.0{\cf1  }+{\cf1  }np.cos{\cf6 (}delta{\cf6 [}i{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1  }/{\cf1  }{\cf20 2}.0{\cf6 )}{\cf1 \par
+}{\cf1             }#{\cf1  }assert{\cf1  }len{\cf6 (}tmp{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }fp{\cf1  }+{\cf1  }tp{\cf1 \par
+}{\cf1             }#{\cf1  }assert{\cf1  }len{\cf6 (}delta{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }tp{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }tp{\cf1  }>{\cf1  }{\cf20 0}{\cf1  }or{\cf1  }fp{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf9 similarity}{\cf1  }{\cf6 =}{\cf1  }np.sum{\cf6 (}tmp{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 similarity}{\cf1  }{\cf6 =}{\cf1  }-1{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }tp,{\cf1  }fp,{\cf1  }fn,{\cf1  }similarity,{\cf1  }thresholds{\cf6 [}:thresh_idx{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_split_parts{\cf6 (}num,{\cf1  }num_part{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 same_part}{\cf1  }{\cf6 =}{\cf1  }num{\cf1  }//{\cf1  }num_part{\cf1 \par
+}{\cf1     }{\cf9 remain_num}{\cf1  }{\cf6 =}{\cf1  }num{\cf1  }%{\cf1  }num_part{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }{\cf9 same_part}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }{\cf6 [}num{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }{\cf9 remain_num}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }{\cf6 [}same_part{\cf6 ]}{\cf1  }*{\cf1  }num_part{\cf1 \par
+}{\cf1     }{\cf3\b else}:{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }{\cf6 [}same_part{\cf6 ]}{\cf1  }*{\cf1  }num_part{\cf1  }+{\cf1  }{\cf6 [}remain_num{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}@numba.jit{\cf6 (}{\cf9 nopython}{\cf6 =}True{\cf6 )}{\cf1 \par
+}def{\cf1  }fused_compute_statistics{\cf6 (}overlaps,{\cf1 \par
+}{\cf1                              }pr,{\cf1 \par
+}{\cf1                              }gt_nums,{\cf1 \par
+}{\cf1                              }dt_nums,{\cf1 \par
+}{\cf1                              }dc_nums,{\cf1 \par
+}{\cf1                              }gt_datas,{\cf1 \par
+}{\cf1                              }dt_datas,{\cf1 \par
+}{\cf1                              }dontcares,{\cf1 \par
+}{\cf1                              }ignored_gts,{\cf1 \par
+}{\cf1                              }ignored_dets,{\cf1 \par
+}{\cf1                              }metric,{\cf1 \par
+}{\cf1                              }min_overlap,{\cf1 \par
+}{\cf1                              }thresholds,{\cf1 \par
+}{\cf1                              }{\cf9 compute_aos}{\cf6 =}False{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 gt_num}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf9 dt_num}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf9 dc_num}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}gt_nums.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }t,{\cf1  }thresh{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}thresholds{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 overlap}{\cf1  }{\cf6 =}{\cf1  }overlaps{\cf6 [}dt_num:dt_num{\cf1  }+{\cf1  }dt_nums{\cf6 [}i{\cf6 ]},{\cf1  }gt_num:{\cf1 \par
+}{\cf1                                }gt_num{\cf1  }+{\cf1  }gt_nums{\cf6 [}i{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 gt_data}{\cf1  }{\cf6 =}{\cf1  }gt_datas{\cf6 [}gt_num:gt_num{\cf1  }+{\cf1  }gt_nums{\cf6 [}i{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 dt_data}{\cf1  }{\cf6 =}{\cf1  }dt_datas{\cf6 [}dt_num:dt_num{\cf1  }+{\cf1  }dt_nums{\cf6 [}i{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 ignored_gt}{\cf1  }{\cf6 =}{\cf1  }ignored_gts{\cf6 [}gt_num:gt_num{\cf1  }+{\cf1  }gt_nums{\cf6 [}i{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 ignored_det}{\cf1  }{\cf6 =}{\cf1  }ignored_dets{\cf6 [}dt_num:dt_num{\cf1  }+{\cf1  }dt_nums{\cf6 [}i{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 dontcare}{\cf1  }{\cf6 =}{\cf1  }dontcares{\cf6 [}dc_num:dc_num{\cf1  }+{\cf1  }dc_nums{\cf6 [}i{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1             }tp,{\cf1  }fp,{\cf1  }fn,{\cf1  }similarity,{\cf1  }{\cf9 _}{\cf1  }{\cf6 =}{\cf1  }compute_statistics_jit{\cf6 (}{\cf1 \par
+}{\cf1                 }overlap,{\cf1 \par
+}{\cf1                 }gt_data,{\cf1 \par
+}{\cf1                 }dt_data,{\cf1 \par
+}{\cf1                 }ignored_gt,{\cf1 \par
+}{\cf1                 }ignored_det,{\cf1 \par
+}{\cf1                 }dontcare,{\cf1 \par
+}{\cf1                 }metric,{\cf1 \par
+}{\cf1                 }{\cf9 min_overlap}{\cf6 =}min_overlap,{\cf1 \par
+}{\cf1                 }{\cf9 thresh}{\cf6 =}thresh,{\cf1 \par
+}{\cf1                 }{\cf9 compute_fp}{\cf6 =}True,{\cf1 \par
+}{\cf1                 }{\cf9 compute_aos}{\cf6 =}compute_aos{\cf6 )}{\cf1 \par
+}{\cf1             }pr{\cf6 [}t,{\cf1  }{\cf20 0}{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }tp{\cf1 \par
+}{\cf1             }pr{\cf6 [}t,{\cf1  }{\cf20 1}{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }fp{\cf1 \par
+}{\cf1             }pr{\cf6 [}t,{\cf1  }{\cf20 2}{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }fn{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }similarity{\cf1  }!{\cf6 =}{\cf1  }-1:{\cf1 \par
+}{\cf1                 }pr{\cf6 [}t,{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }+{\cf6 =}{\cf1  }similarity{\cf1 \par
+}{\cf1         }{\cf9 gt_num}{\cf1  }{\cf6 +=}{\cf1  }gt_nums{\cf6 [}i{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 dt_num}{\cf1  }{\cf6 +=}{\cf1  }dt_nums{\cf6 [}i{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 dc_num}{\cf1  }{\cf6 +=}{\cf1  }dc_nums{\cf6 [}i{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }calculate_iou_partly{\cf6 (}gt_annos,{\cf1  }dt_annos,{\cf1  }metric,{\cf1  }{\cf9 num_parts}{\cf6 =}{\cf20 50}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf13 fast iou algorithm. this function can be used independently to}{\cf1 \par
+}{\cf1     }{\cf3\b do}{\cf1  }result{\cf1  }analysis.{\cf1  }Must{\cf1  }be{\cf1  }used{\cf1  }{\cf3\b in}{\cf1  }CAMERA{\cf1  }coordinate{\cf1  }system.{\cf1 \par
+}{\cf1     }Args:{\cf1 \par
+}{\cf1         }gt_annos:{\cf1  }dict,{\cf1  }must{\cf1  }from{\cf1  }get_label_annos{\cf6 (}{\cf6 )}{\cf1  }{\cf3\b in}{\cf1  }kitti_common.py{\cf1 \par
+}{\cf1         }dt_annos:{\cf1  }dict,{\cf1  }must{\cf1  }from{\cf1  }get_label_annos{\cf6 (}{\cf6 )}{\cf1  }{\cf3\b in}{\cf1  }kitti_common.py{\cf1 \par
+}{\cf1         }metric:{\cf1  }{\cf3 eval}{\cf1  }type.{\cf1  }{\cf20 0}:{\cf1  }bbox,{\cf1  }{\cf20 1}:{\cf1  }bev,{\cf1  }{\cf20 2}:{\cf1  }3d{\cf1 \par
+}{\cf1         }num_parts:{\cf1  }int.{\cf1  }a{\cf1  }parameter{\cf1  }{\cf3\b for}{\cf1  }fast{\cf1  }calculate{\cf1  }algorithm{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1     }assert{\cf1  }len{\cf6 (}gt_annos{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }len{\cf6 (}dt_annos{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 total_dt_num}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}{\cf6 [}len{\cf6 (}a{\cf6 [}{\cf13 "name"}{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }dt_annos{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 total_gt_num}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}{\cf6 [}len{\cf6 (}a{\cf6 [}{\cf13 "name"}{\cf6 ]}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }gt_annos{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 num_examples}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}gt_annos{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 split_parts}{\cf1  }{\cf6 =}{\cf1  }get_split_parts{\cf6 (}num_examples,{\cf1  }num_parts{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 parted_overlaps}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 example_idx}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }num_part{\cf1  }{\cf3\b in}{\cf1  }split_parts:{\cf1 \par
+}{\cf1         }{\cf9 gt_annos_part}{\cf1  }{\cf6 =}{\cf1  }gt_annos{\cf6 [}example_idx:example_idx{\cf1  }+{\cf1  }num_part{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 dt_annos_part}{\cf1  }{\cf6 =}{\cf1  }dt_annos{\cf6 [}example_idx:example_idx{\cf1  }+{\cf1  }num_part{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }{\cf9 metric}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf9 gt_boxes}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "bbox"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }gt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 dt_boxes}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "bbox"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }dt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 overlap_part}{\cf1  }{\cf6 =}{\cf1  }image_box_overlap{\cf6 (}gt_boxes,{\cf1  }dt_boxes{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }{\cf9 metric}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 1}:{\cf1 \par
+}{\cf1             }{\cf9 loc}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}a{\cf6 [}{\cf13 "location"}{\cf6 ]}{\cf6 [}:,{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 2}{\cf6 ]}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }gt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 dims}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}a{\cf6 [}{\cf13 "dimensions"}{\cf6 ]}{\cf6 [}:,{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 2}{\cf6 ]}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }gt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 rots}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "rotation_y"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }gt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 gt_boxes}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}loc,{\cf1  }dims,{\cf1  }rots{\cf6 [}...,{\cf1  }np.newaxis{\cf6 ]}{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 loc}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}a{\cf6 [}{\cf13 "location"}{\cf6 ]}{\cf6 [}:,{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 2}{\cf6 ]}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }dt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 dims}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}a{\cf6 [}{\cf13 "dimensions"}{\cf6 ]}{\cf6 [}:,{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 2}{\cf6 ]}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }dt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 rots}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "rotation_y"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }dt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 dt_boxes}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}loc,{\cf1  }dims,{\cf1  }rots{\cf6 [}...,{\cf1  }np.newaxis{\cf6 ]}{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 overlap_part}{\cf1  }{\cf6 =}{\cf1  }bev_box_overlap{\cf6 (}gt_boxes,{\cf1  }dt_boxes{\cf6 )}.astype{\cf6 (}{\cf1 \par
+}{\cf1                 }np.float64{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }{\cf9 metric}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 2}:{\cf1 \par
+}{\cf1             }{\cf9 loc}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "location"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }gt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 dims}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "dimensions"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }gt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 rots}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "rotation_y"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }gt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 gt_boxes}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}loc,{\cf1  }dims,{\cf1  }rots{\cf6 [}...,{\cf1  }np.newaxis{\cf6 ]}{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 loc}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "location"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }dt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 dims}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "dimensions"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }dt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 rots}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}a{\cf6 [}{\cf13 "rotation_y"}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }a{\cf1  }{\cf3\b in}{\cf1  }dt_annos_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 dt_boxes}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}loc,{\cf1  }dims,{\cf1  }rots{\cf6 [}...,{\cf1  }np.newaxis{\cf6 ]}{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 overlap_part}{\cf1  }{\cf6 =}{\cf1  }d3_box_overlap{\cf6 (}gt_boxes,{\cf1  }dt_boxes{\cf6 )}.astype{\cf6 (}{\cf1 \par
+}{\cf1                 }np.float64{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }raise{\cf1  }ValueError{\cf6 (}{\cf13 "unknown metric"}{\cf6 )}{\cf1 \par
+}{\cf1         }parted_overlaps.append{\cf6 (}overlap_part{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 example_idx}{\cf1  }{\cf6 +=}{\cf1  }num_part{\cf1 \par
+}{\cf1     }{\cf9 overlaps}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 example_idx}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }j,{\cf1  }num_part{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}split_parts{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 gt_annos_part}{\cf1  }{\cf6 =}{\cf1  }gt_annos{\cf6 [}example_idx:example_idx{\cf1  }+{\cf1  }num_part{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 dt_annos_part}{\cf1  }{\cf6 =}{\cf1  }dt_annos{\cf6 [}example_idx:example_idx{\cf1  }+{\cf1  }num_part{\cf6 ]}{\cf1 \par
+}{\cf1         }gt_num_idx,{\cf1  }{\cf9 dt_num_idx}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}num_part{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 gt_box_num}{\cf1  }{\cf6 =}{\cf1  }total_gt_num{\cf6 [}example_idx{\cf1  }+{\cf1  }i{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 dt_box_num}{\cf1  }{\cf6 =}{\cf1  }total_dt_num{\cf6 [}example_idx{\cf1  }+{\cf1  }i{\cf6 ]}{\cf1 \par
+}{\cf1             }overlaps.append{\cf6 (}{\cf1 \par
+}{\cf1                 }parted_overlaps{\cf6 [}j{\cf6 ]}{\cf6 [}gt_num_idx:gt_num_idx{\cf1  }+{\cf1  }gt_box_num,{\cf1 \par
+}{\cf1                                    }dt_num_idx:dt_num_idx{\cf1  }+{\cf1  }dt_box_num{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 gt_num_idx}{\cf1  }{\cf6 +=}{\cf1  }gt_box_num{\cf1 \par
+}{\cf1             }{\cf9 dt_num_idx}{\cf1  }{\cf6 +=}{\cf1  }dt_box_num{\cf1 \par
+}{\cf1         }{\cf9 example_idx}{\cf1  }{\cf6 +=}{\cf1  }num_part{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }overlaps,{\cf1  }parted_overlaps,{\cf1  }total_gt_num,{\cf1  }total_dt_num{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }_prepare_data{\cf6 (}gt_annos,{\cf1  }dt_annos,{\cf1  }current_class,{\cf1  }difficulty,{\cf1  }eval_params{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 gt_datas_list}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 dt_datas_list}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 total_dc_num}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }ignored_gts,{\cf1  }ignored_dets,{\cf1  }{\cf9 dontcares}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 total_num_valid_gt}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}gt_annos{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 rets}{\cf1  }{\cf6 =}{\cf1  }clean_data{\cf6 (}gt_annos{\cf6 [}i{\cf6 ]},{\cf1  }dt_annos{\cf6 [}i{\cf6 ]},{\cf1  }current_class,{\cf1  }difficulty,{\cf1  }eval_params{\cf6 )}{\cf1 \par
+}{\cf1         }num_valid_gt,{\cf1  }ignored_gt,{\cf1  }ignored_det,{\cf1  }{\cf9 dc_bboxes}{\cf1  }{\cf6 =}{\cf1  }rets{\cf1 \par
+}{\cf1         }ignored_gts.append{\cf6 (}np.array{\cf6 (}ignored_gt,{\cf1  }{\cf9 dtype}{\cf6 =}np.int64{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }ignored_dets.append{\cf6 (}np.array{\cf6 (}ignored_det,{\cf1  }{\cf9 dtype}{\cf6 =}np.int64{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }len{\cf6 (}dc_bboxes{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf9 dc_bboxes}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 (}{\cf20 0},{\cf1  }{\cf20 4}{\cf6 )}{\cf6 )}.astype{\cf6 (}np.float64{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 dc_bboxes}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}dc_bboxes,{\cf1  }{\cf20 0}{\cf6 )}.astype{\cf6 (}np.float64{\cf6 )}{\cf1 \par
+}{\cf1         }total_dc_num.append{\cf6 (}dc_bboxes.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }dontcares.append{\cf6 (}dc_bboxes{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 total_num_valid_gt}{\cf1  }{\cf6 +=}{\cf1  }num_valid_gt{\cf1 \par
+}{\cf1         }{\cf9 gt_datas}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf6 [}gt_annos{\cf6 [}i{\cf6 ]}{\cf6 [}{\cf13 "bbox"}{\cf6 ]},{\cf1  }gt_annos{\cf6 [}i{\cf6 ]}{\cf6 [}{\cf13 "alpha"}{\cf6 ]}{\cf6 [}...,{\cf1  }np.newaxis{\cf6 ]}{\cf6 ]},{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 dt_datas}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}{\cf1 \par
+}{\cf1             }dt_annos{\cf6 [}i{\cf6 ]}{\cf6 [}{\cf13 "bbox"}{\cf6 ]},{\cf1  }dt_annos{\cf6 [}i{\cf6 ]}{\cf6 [}{\cf13 "alpha"}{\cf6 ]}{\cf6 [}...,{\cf1  }np.newaxis{\cf6 ]},{\cf1 \par
+}{\cf1             }dt_annos{\cf6 [}i{\cf6 ]}{\cf6 [}{\cf13 "score"}{\cf6 ]}{\cf6 [}...,{\cf1  }np.newaxis{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf6 ]},{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }gt_datas_list.append{\cf6 (}gt_datas{\cf6 )}{\cf1 \par
+}{\cf1         }dt_datas_list.append{\cf6 (}dt_datas{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 total_dc_num}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}total_dc_num,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }{\cf6 (}gt_datas_list,{\cf1  }dt_datas_list,{\cf1  }ignored_gts,{\cf1  }ignored_dets,{\cf1  }dontcares,{\cf1 \par
+}{\cf1             }total_dc_num,{\cf1  }total_num_valid_gt{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }eval_class{\cf6 (}gt_annos,{\cf1 \par
+}{\cf1                }dt_annos,{\cf1 \par
+}{\cf1                }current_classes,{\cf1 \par
+}{\cf1                }difficultys,{\cf1 \par
+}{\cf1                }metric,{\cf1 \par
+}{\cf1                }min_overlaps,{\cf1 \par
+}{\cf1                }eval_params,{\cf1 \par
+}{\cf1                }{\cf9 compute_aos}{\cf6 =}False,{\cf1 \par
+}{\cf1                }{\cf9 num_parts}{\cf6 =}{\cf20 100}{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf13 Kitti eval. support 2d/bev/3d/aos eval. support 0.5:0.05:0.95 coco AP.}{\cf1 \par
+}{\cf1     }Args:{\cf1 \par
+}{\cf1         }gt_annos:{\cf1  }dict,{\cf1  }must{\cf1  }from{\cf1  }get_label_annos{\cf6 (}{\cf6 )}{\cf1  }{\cf3\b in}{\cf1  }kitti_common.py{\cf1 \par
+}{\cf1         }dt_annos:{\cf1  }dict,{\cf1  }must{\cf1  }from{\cf1  }get_label_annos{\cf6 (}{\cf6 )}{\cf1  }{\cf3\b in}{\cf1  }kitti_common.py{\cf1 \par
+}{\cf1         }current_classes:{\cf1  }list{\cf1  }of{\cf1  }int,{\cf1  }{\cf20 0}:{\cf1  }car,{\cf1  }{\cf20 1}:{\cf1  }pedestrian,{\cf1  }{\cf20 2}:{\cf1  }cyclist{\cf1 \par
+}{\cf1         }difficultys:{\cf1  }list{\cf1  }of{\cf1  }int.{\cf1  }{\cf3 eval}{\cf1  }difficulty,{\cf1  }{\cf20 0}:{\cf1  }easy,{\cf1  }{\cf20 1}:{\cf1  }normal,{\cf1  }{\cf20 2}:{\cf1  }hard{\cf1 \par
+}{\cf1         }metric:{\cf1  }{\cf3 eval}{\cf1  }type.{\cf1  }{\cf20 0}:{\cf1  }bbox,{\cf1  }{\cf20 1}:{\cf1  }bev,{\cf1  }{\cf20 2}:{\cf1  }3d{\cf1 \par
+}{\cf1         }min_overlaps:{\cf1  }float,{\cf1  }min{\cf1  }overlap.{\cf1  }format:{\cf1  }{\cf6 [}num_overlap,{\cf1  }metric,{\cf1  }class{\cf6 ]}.{\cf1 \par
+}{\cf1         }eval_params:{\cf1         }dict,{\cf1  }e.g.{\cf1  }used{\cf1  }{\cf3\b for}{\cf1  }distance{\cf1  }based{\cf1  }evaluation{\cf1 \par
+}{\cf1         }num_parts:{\cf1  }int.{\cf1  }a{\cf1  }parameter{\cf1  }{\cf3\b for}{\cf1  }fast{\cf1  }calculate{\cf1  }algorithm{\cf1 \par
+}{\cf1 \par
+}{\cf1     }Returns:{\cf1 \par
+}{\cf1         }dict{\cf1  }of{\cf1  }recall,{\cf1  }precision{\cf1  }and{\cf1  }aos{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1     }assert{\cf1  }len{\cf6 (}gt_annos{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }len{\cf6 (}dt_annos{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 num_examples}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}gt_annos{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 split_parts}{\cf1  }{\cf6 =}{\cf1  }get_split_parts{\cf6 (}num_examples,{\cf1  }num_parts{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 rets}{\cf1  }{\cf6 =}{\cf1  }calculate_iou_partly{\cf6 (}dt_annos,{\cf1  }gt_annos,{\cf1  }metric,{\cf1  }num_parts{\cf6 )}{\cf1 \par
+}{\cf1     }overlaps,{\cf1  }parted_overlaps,{\cf1  }total_dt_num,{\cf1  }{\cf9 total_gt_num}{\cf1  }{\cf6 =}{\cf1  }rets{\cf1 \par
+}{\cf1     }{\cf9 N_SAMPLE_PTS}{\cf1  }{\cf6 =}{\cf1  }{\cf20 41}{\cf1 \par
+}{\cf1     }{\cf9 num_minoverlap}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}min_overlaps{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 num_class}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}current_classes{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 num_difficulty}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}difficultys{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 precision}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf6 [}num_class,{\cf1  }num_difficulty,{\cf1  }num_minoverlap,{\cf1  }N_SAMPLE_PTS{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 recall}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf6 [}num_class,{\cf1  }num_difficulty,{\cf1  }num_minoverlap,{\cf1  }N_SAMPLE_PTS{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 aos}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 [}num_class,{\cf1  }num_difficulty,{\cf1  }num_minoverlap,{\cf1  }N_SAMPLE_PTS{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }m,{\cf1  }current_class{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}current_classes{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }l,{\cf1  }difficulty{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}difficultys{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 rets}{\cf1  }{\cf6 =}{\cf1  }_prepare_data{\cf6 (}gt_annos,{\cf1  }dt_annos,{\cf1  }current_class,{\cf1  }difficulty,{\cf1  }eval_params{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf6 (}gt_datas_list,{\cf1  }dt_datas_list,{\cf1  }ignored_gts,{\cf1  }ignored_dets,{\cf1 \par
+}{\cf1              }dontcares,{\cf1  }total_dc_num,{\cf1  }total_num_valid_gt{\cf6 )}{\cf1  }{\cf6 =}{\cf1  }rets{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }k,{\cf1  }min_overlap{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}min_overlaps{\cf6 [}:,{\cf1  }metric,{\cf1  }m{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 thresholdss}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 all_tp}{\cf6 =}{\cf20 0}{\cf1 \par
+}{\cf1                 }{\cf9 all_fn}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1                 }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}gt_annos{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                     }{\cf9 rets}{\cf1  }{\cf6 =}{\cf1  }compute_statistics_jit{\cf6 (}{\cf1 \par
+}{\cf1                         }overlaps{\cf6 [}i{\cf6 ]},{\cf1 \par
+}{\cf1                         }gt_datas_list{\cf6 [}i{\cf6 ]},{\cf1 \par
+}{\cf1                         }dt_datas_list{\cf6 [}i{\cf6 ]},{\cf1 \par
+}{\cf1                         }ignored_gts{\cf6 [}i{\cf6 ]},{\cf1 \par
+}{\cf1                         }ignored_dets{\cf6 [}i{\cf6 ]},{\cf1 \par
+}{\cf1                         }dontcares{\cf6 [}i{\cf6 ]},{\cf1 \par
+}{\cf1                         }metric,{\cf1 \par
+}{\cf1                         }{\cf9 min_overlap}{\cf6 =}min_overlap,{\cf1 \par
+}{\cf1                         }{\cf9 thresh}{\cf6 =}{\cf20 0}.0,{\cf1 \par
+}{\cf1                         }{\cf9 compute_fp}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1                     }tp,{\cf1  }fp,{\cf1  }fn,{\cf1  }similarity,{\cf1  }{\cf9 thresholds}{\cf1  }{\cf6 =}{\cf1  }rets{\cf1 \par
+}{\cf1                     }{\cf9 all_tp}{\cf6 +=}tp{\cf1 \par
+}{\cf1                     }{\cf9 all_fn}{\cf1  }{\cf6 +=}{\cf1  }fn{\cf1 \par
+}{\cf1                     }{\cf9 thresholdss}{\cf1  }{\cf6 +=}{\cf1  }thresholds.tolist{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }{\cf9 thresholdss}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}thresholdss{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 thresholds}{\cf1  }{\cf6 =}{\cf1  }get_thresholds{\cf6 (}thresholdss,{\cf1  }total_num_valid_gt{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 thresholds}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}thresholds{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 pr}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 [}len{\cf6 (}thresholds{\cf6 )},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 idx}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1                 }{\cf3\b for}{\cf1  }j,{\cf1  }num_part{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}split_parts{\cf6 )}:{\cf1 \par
+}{\cf1                     }{\cf9 gt_datas_part}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                         }gt_datas_list{\cf6 [}idx:idx{\cf1  }+{\cf1  }num_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf9 dt_datas_part}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                         }dt_datas_list{\cf6 [}idx:idx{\cf1  }+{\cf1  }num_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf9 dc_datas_part}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                         }dontcares{\cf6 [}idx:idx{\cf1  }+{\cf1  }num_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf9 ignored_dets_part}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                         }ignored_dets{\cf6 [}idx:idx{\cf1  }+{\cf1  }num_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf9 ignored_gts_part}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf1 \par
+}{\cf1                         }ignored_gts{\cf6 [}idx:idx{\cf1  }+{\cf1  }num_part{\cf6 ]},{\cf1  }{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1                     }fused_compute_statistics{\cf6 (}{\cf1 \par
+}{\cf1                         }parted_overlaps{\cf6 [}j{\cf6 ]},{\cf1 \par
+}{\cf1                         }pr,{\cf1 \par
+}{\cf1                         }total_gt_num{\cf6 [}idx:idx{\cf1  }+{\cf1  }num_part{\cf6 ]},{\cf1 \par
+}{\cf1                         }total_dt_num{\cf6 [}idx:idx{\cf1  }+{\cf1  }num_part{\cf6 ]},{\cf1 \par
+}{\cf1                         }total_dc_num{\cf6 [}idx:idx{\cf1  }+{\cf1  }num_part{\cf6 ]},{\cf1 \par
+}{\cf1                         }gt_datas_part,{\cf1 \par
+}{\cf1                         }dt_datas_part,{\cf1 \par
+}{\cf1                         }dc_datas_part,{\cf1 \par
+}{\cf1                         }ignored_gts_part,{\cf1 \par
+}{\cf1                         }ignored_dets_part,{\cf1 \par
+}{\cf1                         }metric,{\cf1 \par
+}{\cf1                         }{\cf9 min_overlap}{\cf6 =}min_overlap,{\cf1 \par
+}{\cf1                         }{\cf9 thresholds}{\cf6 =}thresholds,{\cf1 \par
+}{\cf1                         }{\cf9 compute_aos}{\cf6 =}compute_aos{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf9 idx}{\cf1  }{\cf6 +=}{\cf1  }num_part{\cf1 \par
+}{\cf1                 }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}thresholds{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                     }recall{\cf6 [}m,{\cf1  }l,{\cf1  }k,{\cf1  }i{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }pr{\cf6 [}i,{\cf1  }{\cf20 0}{\cf6 ]}{\cf1  }/{\cf1  }{\cf6 (}pr{\cf6 [}i,{\cf1  }{\cf20 0}{\cf6 ]}{\cf1  }+{\cf1  }pr{\cf6 [}i,{\cf1  }{\cf20 2}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }precision{\cf6 [}m,{\cf1  }l,{\cf1  }k,{\cf1  }i{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }pr{\cf6 [}i,{\cf1  }{\cf20 0}{\cf6 ]}{\cf1  }/{\cf1  }{\cf6 (}pr{\cf6 [}i,{\cf1  }{\cf20 0}{\cf6 ]}{\cf1  }+{\cf1  }pr{\cf6 [}i,{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }compute_aos:{\cf1 \par
+}{\cf1                         }aos{\cf6 [}m,{\cf1  }l,{\cf1  }k,{\cf1  }i{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }pr{\cf6 [}i,{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }/{\cf1  }{\cf6 (}pr{\cf6 [}i,{\cf1  }{\cf20 0}{\cf6 ]}{\cf1  }+{\cf1  }pr{\cf6 [}i,{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}thresholds{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                     }precision{\cf6 [}m,{\cf1  }l,{\cf1  }k,{\cf1  }i{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.max{\cf6 (}{\cf1 \par
+}{\cf1                         }precision{\cf6 [}m,{\cf1  }l,{\cf1  }k,{\cf1  }i:{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}-1{\cf6 )}{\cf1 \par
+}{\cf1                     }#recall{\cf6 [}m,{\cf1  }l,{\cf1  }k,{\cf1  }i{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.max{\cf6 (}recall{\cf6 [}m,{\cf1  }l,{\cf1  }k,{\cf1  }i:{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}-1{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }compute_aos:{\cf1 \par
+}{\cf1                         }aos{\cf6 [}m,{\cf1  }l,{\cf1  }k,{\cf1  }i{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.max{\cf6 (}aos{\cf6 [}m,{\cf1  }l,{\cf1  }k,{\cf1  }i:{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}-1{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 ret_dict}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1         }{\cf13 "recall"}:{\cf1  }recall,{\cf1 \par
+}{\cf1         }{\cf13 "precision"}:{\cf1  }precision,{\cf1 \par
+}{\cf1         }{\cf13 "orientation"}:{\cf1  }aos,{\cf1 \par
+}{\cf1     }{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }ret_dict{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_mAP{\cf6 (}prec{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 sums}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 0},{\cf1  }prec.shape{\cf6 [}-1{\cf6 ]},{\cf1  }{\cf20 4}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 sums}{\cf1  }{\cf6 =}{\cf1  }sums{\cf1  }+{\cf1  }prec{\cf6 [}...,{\cf1  }i{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }sums{\cf1  }/{\cf1  }{\cf20 11}{\cf1  }*{\cf1  }{\cf20 100}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_mAP_R40{\cf6 (}prec{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 sums}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 1},{\cf1  }prec.shape{\cf6 [}-1{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 sums}{\cf1  }{\cf6 =}{\cf1  }sums{\cf1  }+{\cf1  }prec{\cf6 [}...,{\cf1  }i{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }sums{\cf1  }/{\cf1  }{\cf20 40}{\cf1  }*{\cf1  }{\cf20 100}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }print_str{\cf6 (}value,{\cf1  }*arg,{\cf1  }{\cf9 sstream}{\cf6 =}None{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }sstream{\cf1  }is{\cf1  }None:{\cf1 \par
+}{\cf1         }{\cf9 sstream}{\cf1  }{\cf6 =}{\cf1  }sysio.StringIO{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1     }sstream.truncate{\cf6 (}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1     }sstream.seek{\cf6 (}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1     }print{\cf6 (}value,{\cf1  }*arg,{\cf1  }{\cf9 file}{\cf6 =}sstream{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }sstream.getvalue{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }do_eval{\cf6 (}gt_annos,{\cf1 \par
+}{\cf1             }dt_annos,{\cf1 \par
+}{\cf1             }current_classes,{\cf1 \par
+}{\cf1             }min_overlaps,{\cf1 \par
+}{\cf1             }eval_params,{\cf1 \par
+}{\cf1             }{\cf9 compute_aos}{\cf6 =}False,{\cf1 \par
+}{\cf1             }{\cf9 PR_detail_dict}{\cf6 =}None{\cf6 )}:{\cf1 \par
+}{\cf1     }#{\cf1  }min_overlaps:{\cf1  }{\cf6 [}num_minoverlap,{\cf1  }metric,{\cf1  }num_class{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 difficultys}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 1},{\cf1  }{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 ret}{\cf1  }{\cf6 =}{\cf1  }eval_class{\cf6 (}gt_annos,{\cf1  }dt_annos,{\cf1  }current_classes,{\cf1  }difficultys,{\cf1  }{\cf20 0},{\cf1 \par
+}{\cf1                      }min_overlaps,{\cf1  }eval_params,{\cf1  }compute_aos{\cf6 )}{\cf1 \par
+}{\cf1     }#{\cf1  }ret:{\cf1  }{\cf6 [}num_class,{\cf1  }num_diff,{\cf1  }num_minoverlap,{\cf1  }num_sample_points{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 mAP_bbox}{\cf1  }{\cf6 =}{\cf1  }get_mAP{\cf6 (}ret{\cf6 [}{\cf13 "precision"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 mAP_bbox_R40}{\cf1  }{\cf6 =}{\cf1  }get_mAP_R40{\cf6 (}ret{\cf6 [}{\cf13 "precision"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }PR_detail_dict{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1         }PR_detail_dict{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }ret{\cf6 [}{\cf13 'precision'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 mAP_aos}{\cf1  }{\cf6 =}{\cf1  }{\cf9 mAP_aos_R40}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }compute_aos:{\cf1 \par
+}{\cf1         }{\cf9 mAP_aos}{\cf1  }{\cf6 =}{\cf1  }get_mAP{\cf6 (}ret{\cf6 [}{\cf13 "orientation"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 mAP_aos_R40}{\cf1  }{\cf6 =}{\cf1  }get_mAP_R40{\cf6 (}ret{\cf6 [}{\cf13 "orientation"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }PR_detail_dict{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1             }PR_detail_dict{\cf6 [}{\cf13 'aos'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }ret{\cf6 [}{\cf13 'orientation'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 ret}{\cf1  }{\cf6 =}{\cf1  }eval_class{\cf6 (}gt_annos,{\cf1  }dt_annos,{\cf1  }current_classes,{\cf1  }difficultys,{\cf1  }{\cf20 1},{\cf1 \par
+}{\cf1                      }min_overlaps,{\cf1  }eval_params{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 mAP_bev}{\cf1  }{\cf6 =}{\cf1  }get_mAP{\cf6 (}ret{\cf6 [}{\cf13 "precision"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 mAP_bev_R40}{\cf1  }{\cf6 =}{\cf1  }get_mAP_R40{\cf6 (}ret{\cf6 [}{\cf13 "precision"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }PR_detail_dict{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1         }PR_detail_dict{\cf6 [}{\cf13 'bev'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }ret{\cf6 [}{\cf13 'precision'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 ret}{\cf1  }{\cf6 =}{\cf1  }eval_class{\cf6 (}gt_annos,{\cf1  }dt_annos,{\cf1  }current_classes,{\cf1  }difficultys,{\cf1  }{\cf20 2},{\cf1 \par
+}{\cf1                      }min_overlaps,{\cf1  }eval_params{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 mAP_3d}{\cf1  }{\cf6 =}{\cf1  }get_mAP{\cf6 (}ret{\cf6 [}{\cf13 "precision"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 mAP_3d_R40}{\cf1  }{\cf6 =}{\cf1  }get_mAP_R40{\cf6 (}ret{\cf6 [}{\cf13 "precision"}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }PR_detail_dict{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1         }PR_detail_dict{\cf6 [}{\cf13 '3d'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }ret{\cf6 [}{\cf13 'precision'}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }mAP_bbox,{\cf1  }mAP_bev,{\cf1  }mAP_3d,{\cf1  }mAP_aos,{\cf1  }mAP_bbox_R40,{\cf1  }mAP_bev_R40,{\cf1  }mAP_3d_R40,{\cf1  }mAP_aos_R40{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }do_coco_style_eval{\cf6 (}gt_annos,{\cf1  }dt_annos,{\cf1  }current_classes,{\cf1  }overlap_ranges,{\cf1 \par
+}{\cf1                        }compute_aos{\cf6 )}:{\cf1 \par
+}{\cf1     }#{\cf1  }overlap_ranges:{\cf1  }{\cf6 [}range,{\cf1  }metric,{\cf1  }num_class{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 min_overlaps}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 [}{\cf20 10},{\cf1  }*overlap_ranges.shape{\cf6 [}{\cf20 1}:{\cf6 ]}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}overlap_ranges.shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }j{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}overlap_ranges.shape{\cf6 [}{\cf20 2}{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1             }min_overlaps{\cf6 [}:,{\cf1  }i,{\cf1  }j{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.linspace{\cf6 (}*overlap_ranges{\cf6 [}:,{\cf1  }i,{\cf1  }j{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }mAP_bbox,{\cf1  }mAP_bev,{\cf1  }mAP_3d,{\cf1  }{\cf9 mAP_aos}{\cf1  }{\cf6 =}{\cf1  }do_eval{\cf6 (}{\cf1 \par
+}{\cf1         }gt_annos,{\cf1  }dt_annos,{\cf1  }current_classes,{\cf1  }min_overlaps,{\cf1  }compute_aos{\cf6 )}{\cf1 \par
+}{\cf1     }#{\cf1  }ret:{\cf1  }{\cf6 [}num_class,{\cf1  }num_diff,{\cf1  }num_minoverlap{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 mAP_bbox}{\cf1  }{\cf6 =}{\cf1  }mAP_bbox.mean{\cf6 (}-1{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 mAP_bev}{\cf1  }{\cf6 =}{\cf1  }mAP_bev.mean{\cf6 (}-1{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 mAP_3d}{\cf1  }{\cf6 =}{\cf1  }mAP_3d.mean{\cf6 (}-1{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }mAP_aos{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1         }{\cf9 mAP_aos}{\cf1  }{\cf6 =}{\cf1  }mAP_aos.mean{\cf6 (}-1{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }mAP_bbox,{\cf1  }mAP_bev,{\cf1  }mAP_3d,{\cf1  }mAP_aos{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_official_eval_result{\cf6 (}gt_annos,{\cf1  }dt_annos,{\cf1  }current_classes,{\cf1  }{\cf9 PR_detail_dict}{\cf6 =}None{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 overlap_0_7}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 [}{\cf20 0}.7,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.7,{\cf1 \par
+}{\cf1                              }{\cf20 0}.5,{\cf1  }{\cf20 0}.7{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 0}.7,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.7,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.7{\cf6 ]},{\cf1 \par
+}{\cf1                             }{\cf6 [}{\cf20 0}.7,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.7,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.7{\cf6 ]}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 overlap_0_5}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 [}{\cf20 0}.7,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.7,{\cf1 \par
+}{\cf1                              }{\cf20 0}.5,{\cf1  }{\cf20 0}.5{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 0}.5,{\cf1  }{\cf20 0}.25,{\cf1  }{\cf20 0}.25,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.25,{\cf1  }{\cf20 0}.5{\cf6 ]},{\cf1 \par
+}{\cf1                             }{\cf6 [}{\cf20 0}.5,{\cf1  }{\cf20 0}.25,{\cf1  }{\cf20 0}.25,{\cf1  }{\cf20 0}.5,{\cf1  }{\cf20 0}.25,{\cf1  }{\cf20 0}.5{\cf6 ]}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 min_overlaps}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}{\cf6 [}overlap_0_7,{\cf1  }overlap_0_5{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1   }#{\cf1  }{\cf6 [}{\cf20 2},{\cf1  }{\cf20 3},{\cf1  }{\cf20 5}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 class_to_name}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1         }{\cf20 0}:{\cf1  }{\cf13 'Car'},{\cf1 \par
+}{\cf1         }{\cf20 1}:{\cf1  }{\cf13 'Pedestrian'},{\cf1 \par
+}{\cf1         }{\cf20 2}:{\cf1  }{\cf13 'Cyclist'},{\cf1 \par
+}{\cf1         }{\cf20 3}:{\cf1  }{\cf13 'Van'},{\cf1 \par
+}{\cf1         }{\cf20 4}:{\cf1  }{\cf13 'Person_sitting'},{\cf1 \par
+}{\cf1         }{\cf20 5}:{\cf1  }{\cf13 'Truck'}{\cf1 \par
+}{\cf1     }{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf9 name_to_class}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}v:{\cf1  }n{\cf1  }{\cf3\b for}{\cf1  }n,{\cf1  }v{\cf1  }{\cf3\b in}{\cf1  }class_to_name.items{\cf6 (}{\cf6 )}{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }not{\cf1  }isinstance{\cf6 (}current_classes,{\cf1  }{\cf6 (}list,{\cf1  }tuple{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 current_classes}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}current_classes{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 current_classes_int}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }curcls{\cf1  }{\cf3\b in}{\cf1  }current_classes:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }isinstance{\cf6 (}curcls,{\cf1  }str{\cf6 )}:{\cf1 \par
+}{\cf1             }current_classes_int.append{\cf6 (}name_to_class{\cf6 [}curcls{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }current_classes_int.append{\cf6 (}curcls{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 current_classes}{\cf1  }{\cf6 =}{\cf1  }current_classes_int{\cf1 \par
+}{\cf1     }{\cf9 min_overlaps}{\cf1  }{\cf6 =}{\cf1  }min_overlaps{\cf6 [}:,{\cf1  }:,{\cf1  }current_classes{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 result}{\cf1  }{\cf6 =}{\cf1  }{\cf13 ''}{\cf1 \par
+}{\cf1     }#{\cf1  }check{\cf1  }whether{\cf1  }alpha{\cf1  }is{\cf1  }valid{\cf1 \par
+}{\cf1     }{\cf9 compute_aos}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }anno{\cf1  }{\cf3\b in}{\cf1  }dt_annos:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }anno{\cf6 [}{\cf13 'alpha'}{\cf6 ]}.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }anno{\cf6 [}{\cf13 'alpha'}{\cf6 ]}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }-10:{\cf1 \par
+}{\cf1                 }{\cf9 compute_aos}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }{\cf3\b break}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf9 distance_thresholds}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 (}{\cf20 0},{\cf1  }{\cf20 80}{\cf6 )},{\cf1 \par
+}{\cf1                            }{\cf6 (}{\cf20 0},{\cf1  }{\cf20 30}{\cf6 )},{\cf1  }{\cf6 (}{\cf20 30},{\cf1  }{\cf20 50}{\cf6 )},{\cf1  }{\cf6 (}{\cf20 50},{\cf1  }{\cf20 80}{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 ret_dict}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf9 df}{\cf1  }{\cf6 =}{\cf1  }pd.DataFrame{\cf6 (}{\cf9 columns}{\cf6 =}{\cf6 [}{\cf13 'class'},{\cf1  }{\cf13 'metric'},{\cf1  }{\cf13 'difficulty'},{\cf1  }{\cf13 'min dist'},{\cf1  }{\cf13 'max dist'},{\cf1  }{\cf13 'result'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }distance_values{\cf1  }{\cf3\b in}{\cf1  }distance_thresholds:{\cf1 \par
+}{\cf1         }min_dist,{\cf1  }{\cf9 max_dist}{\cf1  }{\cf6 =}{\cf1  }distance_values{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 eval_params}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf13 'min_distance'}:{\cf1  }min_dist,{\cf1 \par
+}{\cf1                         }{\cf13 'max_distance'}:{\cf1  }max_dist{\cf6 \}}{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }mAPbbox,{\cf1  }mAPbev,{\cf1  }mAP3d,{\cf1  }mAPaos,{\cf1  }mAPbbox_R40,{\cf1  }mAPbev_R40,{\cf1  }mAP3d_R40,{\cf1  }{\cf9 mAPaos_R40}{\cf1  }{\cf6 =}{\cf1  }do_eval{\cf6 (}{\cf1 \par
+}{\cf1             }gt_annos,{\cf1  }dt_annos,{\cf1  }current_classes,{\cf1  }min_overlaps,{\cf1  }eval_params,{\cf1  }compute_aos,{\cf1  }{\cf9 PR_detail_dict}{\cf6 =}PR_detail_dict{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }j,{\cf1  }curcls{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}current_classes{\cf6 )}:{\cf1 \par
+}{\cf1             }#{\cf1  }mAP{\cf1  }threshold{\cf1  }array:{\cf1  }{\cf6 [}num_minoverlap,{\cf1  }metric,{\cf1  }class{\cf6 ]}{\cf1 \par
+}{\cf1             }#{\cf1  }mAP{\cf1  }result:{\cf1  }{\cf6 [}num_class,{\cf1  }num_diff,{\cf1  }num_minoverlap{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}f{\cf13 '\\n###############################'}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}f{\cf13 '\{class_to_name[curcls]\} (\{min_dist\}-\{max_dist\}m)'}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}f{\cf13 '###############################'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}min_overlaps.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf1 \par
+}{\cf1                     }{\cf6 (}f{\cf13 "\{class_to_name[curcls]\} "}{\cf1 \par
+}{\cf1                     }{\cf13 "AP@\{:.2f\}, \{:.2f\}, \{:.2f\}:"}.format{\cf6 (}*min_overlaps{\cf6 [}i,{\cf1  }:,{\cf1  }j{\cf6 ]}{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "bbox AP:\{mAPbbox[j, 0, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAPbbox[j, 1, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAPbbox[j, 2, i]:.4f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "bev  AP:\{mAPbev[j, 0, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAPbev[j, 1, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAPbev[j, 2, i]:.4f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "3d   AP:\{mAP3d[j, 0, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAP3d[j, 1, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAP3d[j, 2, i]:.4f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }compute_aos:{\cf1 \par
+}{\cf1                     }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "aos  AP:\{mAPaos[j, 0, i]:.2f\}, "}{\cf1 \par
+}{\cf1                                         }f{\cf13 "\{mAPaos[j, 1, i]:.2f\}, "}{\cf1 \par
+}{\cf1                                         }f{\cf13 "\{mAPaos[j, 2, i]:.2f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                     }#{\cf1  }{\cf3\b if}{\cf1  }{\cf9 i}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                     }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_aos/easy'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPaos{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                     }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_aos/moderate'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPaos{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                     }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_aos/hard'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPaos{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf1 \par
+}{\cf1                     }{\cf6 (}f{\cf13 "\{class_to_name[curcls]\} "}{\cf1 \par
+}{\cf1                     }{\cf13 "AP_R40@\{:.2f\}, \{:.2f\}, \{:.2f\}:"}.format{\cf6 (}*min_overlaps{\cf6 [}i,{\cf1  }:,{\cf1  }j{\cf6 ]}{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "bbox AP:\{mAPbbox_R40[j, 0, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAPbbox_R40[j, 1, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAPbbox_R40[j, 2, i]:.4f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "bev  AP:\{mAPbev_R40[j, 0, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAPbev_R40[j, 1, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAPbev_R40[j, 2, i]:.4f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "3d   AP:\{mAP3d_R40[j, 0, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAP3d_R40[j, 1, i]:.4f\}, "}{\cf1 \par
+}{\cf1                                     }f{\cf13 "\{mAP3d_R40[j, 2, i]:.4f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }compute_aos:{\cf1 \par
+}{\cf1                     }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "aos  AP:\{mAPaos_R40[j, 0, i]:.2f\}, "}{\cf1 \par
+}{\cf1                                         }f{\cf13 "\{mAPaos_R40[j, 1, i]:.2f\}, "}{\cf1 \par
+}{\cf1                                         }f{\cf13 "\{mAPaos_R40[j, 2, i]:.2f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }{\cf6 (}{\cf9 i}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}:{\cf1  }{\cf1 \par
+}{\cf1                         }{\cf3\b if}{\cf1  }{\cf6 (}{\cf9 min_dist}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }and{\cf1  }{\cf6 (}{\cf9 max_dist}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 80}{\cf6 )}:{\cf1 \par
+}{\cf1                             }ret_dict{\cf6 [}{\cf13 '%s_aos/easy_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf1  }{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPaos_R40{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                             }ret_dict{\cf6 [}{\cf13 '%s_aos/moderate_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPaos_R40{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                             }ret_dict{\cf6 [}{\cf13 '%s_aos/hard_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPaos_R40{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1                         }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 'aos'},{\cf1  }{\cf13 'easy'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAPaos_R40{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                         }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 'aos'},{\cf1  }{\cf13 'moderate'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAPaos_R40{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1  }{\cf6 ]}{\cf1 \par
+}{\cf1                         }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 'aos'},{\cf1  }{\cf13 'hard'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAPaos_R40{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1  }{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }{\cf6 (}{\cf9 i}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }:{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }{\cf6 (}{\cf9 min_dist}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }and{\cf1  }{\cf6 (}{\cf9 max_dist}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 80}{\cf6 )}:{\cf1 \par
+}{\cf1                         }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_3d/easy'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAP3d{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_3d/moderate'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAP3d{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_3d/hard'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAP3d{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_bev/easy'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbev{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_bev/moderate'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbev{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_bev/hard'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbev{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_image/easy'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbbox{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_image/moderate'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbbox{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }#{\cf1  }ret_dict{\cf6 [}{\cf13 '%s_image/hard'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbbox{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1                         }ret_dict{\cf6 [}{\cf13 '%s_3d/easy_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAP3d_R40{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }ret_dict{\cf6 [}{\cf13 '%s_3d/moderate_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAP3d_R40{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }ret_dict{\cf6 [}{\cf13 '%s_3d/hard_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAP3d_R40{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }ret_dict{\cf6 [}{\cf13 '%s_bev/easy_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbev_R40{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }ret_dict{\cf6 [}{\cf13 '%s_bev/moderate_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbev_R40{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }ret_dict{\cf6 [}{\cf13 '%s_bev/hard_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbev_R40{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }ret_dict{\cf6 [}{\cf13 '%s_image/easy_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbbox_R40{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }ret_dict{\cf6 [}{\cf13 '%s_image/moderate_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbbox_R40{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }ret_dict{\cf6 [}{\cf13 '%s_image/hard_R40'}{\cf1  }%{\cf1  }class_to_name{\cf6 [}curcls{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }mAPbbox_R40{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1                     }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 '3d'},{\cf1  }{\cf13 'easy'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAP3d_R40{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 '3d'},{\cf1  }{\cf13 'moderate'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAP3d_R40{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 '3d'},{\cf1  }{\cf13 'hard'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAP3d_R40{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 'bev'},{\cf1  }{\cf13 'easy'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAPbev_R40{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 'bev'},{\cf1  }{\cf13 'moderate'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAPbev_R40{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 'bev'},{\cf1  }{\cf13 'hard'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAPbev_R40{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 'image'},{\cf1  }{\cf13 'easy'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAPbbox_R40{\cf6 [}j,{\cf1  }{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 'image'},{\cf1  }{\cf13 'moderate'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAPbbox_R40{\cf6 [}j,{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }df.loc{\cf6 [}len{\cf6 (}df{\cf6 )}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}class_to_name{\cf6 [}curcls{\cf6 ]},{\cf1  }{\cf13 'image'},{\cf1  }{\cf13 'hard'},{\cf1  }min_dist,{\cf1  }max_dist,{\cf1  }mAPbbox_R40{\cf6 [}j,{\cf1  }{\cf20 2},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }result,{\cf1  }ret_dict,{\cf1  }df{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}def{\cf1  }get_coco_eval_result{\cf6 (}gt_annos,{\cf1  }dt_annos,{\cf1  }current_classes{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf9 class_to_name}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1         }{\cf20 0}:{\cf1  }{\cf13 'Car'},{\cf1 \par
+}{\cf1         }{\cf20 1}:{\cf1  }{\cf13 'Pedestrian'},{\cf1 \par
+}{\cf1         }{\cf20 2}:{\cf1  }{\cf13 'Cyclist'},{\cf1 \par
+}{\cf1         }{\cf20 3}:{\cf1  }{\cf13 'Van'},{\cf1 \par
+}{\cf1         }{\cf20 4}:{\cf1  }{\cf13 'Person_sitting'},{\cf1 \par
+}{\cf1     }{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf9 class_to_range}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1         }{\cf20 0}:{\cf1  }{\cf6 [}{\cf20 0}.5,{\cf1  }{\cf20 0}.95,{\cf1  }{\cf20 10}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf20 1}:{\cf1  }{\cf6 [}{\cf20 0}.25,{\cf1  }{\cf20 0}.7,{\cf1  }{\cf20 10}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf20 2}:{\cf1  }{\cf6 [}{\cf20 0}.25,{\cf1  }{\cf20 0}.7,{\cf1  }{\cf20 10}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf20 3}:{\cf1  }{\cf6 [}{\cf20 0}.5,{\cf1  }{\cf20 0}.95,{\cf1  }{\cf20 10}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf20 4}:{\cf1  }{\cf6 [}{\cf20 0}.25,{\cf1  }{\cf20 0}.7,{\cf1  }{\cf20 10}{\cf6 ]},{\cf1 \par
+}{\cf1     }{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf9 name_to_class}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}v:{\cf1  }n{\cf1  }{\cf3\b for}{\cf1  }n,{\cf1  }v{\cf1  }{\cf3\b in}{\cf1  }class_to_name.items{\cf6 (}{\cf6 )}{\cf6 \}}{\cf1 \par
+}{\cf1     }{\cf3\b if}{\cf1  }not{\cf1  }isinstance{\cf6 (}current_classes,{\cf1  }{\cf6 (}list,{\cf1  }tuple{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1         }{\cf9 current_classes}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}current_classes{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 current_classes_int}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }curcls{\cf1  }{\cf3\b in}{\cf1  }current_classes:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }isinstance{\cf6 (}curcls,{\cf1  }str{\cf6 )}:{\cf1 \par
+}{\cf1             }current_classes_int.append{\cf6 (}name_to_class{\cf6 [}curcls{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }current_classes_int.append{\cf6 (}curcls{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf9 current_classes}{\cf1  }{\cf6 =}{\cf1  }current_classes_int{\cf1 \par
+}{\cf1     }{\cf9 overlap_ranges}{\cf1  }{\cf6 =}{\cf1  }np.zeros{\cf6 (}{\cf6 [}{\cf20 3},{\cf1  }{\cf20 3},{\cf1  }len{\cf6 (}current_classes{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }i,{\cf1  }curcls{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}current_classes{\cf6 )}:{\cf1 \par
+}{\cf1         }overlap_ranges{\cf6 [}:,{\cf1  }:,{\cf1  }i{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf1 \par
+}{\cf1             }class_to_range{\cf6 [}curcls{\cf6 ]}{\cf6 )}{\cf6 [}:,{\cf1  }np.newaxis{\cf6 ]}{\cf1 \par
+}{\cf1     }{\cf9 result}{\cf1  }{\cf6 =}{\cf1  }{\cf13 ''}{\cf1 \par
+}{\cf1     }#{\cf1  }check{\cf1  }whether{\cf1  }alpha{\cf1  }is{\cf1  }valid{\cf1 \par
+}{\cf1     }{\cf9 compute_aos}{\cf1  }{\cf6 =}{\cf1  }False{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }anno{\cf1  }{\cf3\b in}{\cf1  }dt_annos:{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }anno{\cf6 [}{\cf13 'alpha'}{\cf6 ]}.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }anno{\cf6 [}{\cf13 'alpha'}{\cf6 ]}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }-10:{\cf1 \par
+}{\cf1                 }{\cf9 compute_aos}{\cf1  }{\cf6 =}{\cf1  }True{\cf1 \par
+}{\cf1             }{\cf3\b break}{\cf1 \par
+}{\cf1     }mAPbbox,{\cf1  }mAPbev,{\cf1  }mAP3d,{\cf1  }{\cf9 mAPaos}{\cf1  }{\cf6 =}{\cf1  }do_coco_style_eval{\cf6 (}{\cf1 \par
+}{\cf1         }gt_annos,{\cf1  }dt_annos,{\cf1  }current_classes,{\cf1  }overlap_ranges,{\cf1  }compute_aos{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b for}{\cf1  }j,{\cf1  }curcls{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}current_classes{\cf6 )}:{\cf1 \par
+}{\cf1         }#{\cf1  }mAP{\cf1  }threshold{\cf1  }array:{\cf1  }{\cf6 [}num_minoverlap,{\cf1  }metric,{\cf1  }class{\cf6 ]}{\cf1 \par
+}{\cf1         }#{\cf1  }mAP{\cf1  }result:{\cf1  }{\cf6 [}num_class,{\cf1  }num_diff,{\cf1  }num_minoverlap{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 o_range}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}class_to_range{\cf6 [}curcls{\cf6 ]}{\cf6 )}{\cf6 [}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 2},{\cf1  }{\cf20 1}{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1         }o_range{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}o_range{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1  }-{\cf1  }o_range{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1  }/{\cf1  }{\cf6 (}o_range{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1  }-{\cf1  }{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "\{class_to_name[curcls]\} "}{\cf1 \par
+}{\cf1                              }{\cf13 "coco AP@\{:.2f\}:\{:.2f\}:\{:.2f\}:"}.format{\cf6 (}*o_range{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "bbox AP:\{mAPbbox[j, 0]:.2f\}, "}{\cf1 \par
+}{\cf1                              }f{\cf13 "\{mAPbbox[j, 1]:.2f\}, "}{\cf1 \par
+}{\cf1                              }f{\cf13 "\{mAPbbox[j, 2]:.2f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "bev  AP:\{mAPbev[j, 0]:.2f\}, "}{\cf1 \par
+}{\cf1                              }f{\cf13 "\{mAPbev[j, 1]:.2f\}, "}{\cf1 \par
+}{\cf1                              }f{\cf13 "\{mAPbev[j, 2]:.2f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "3d   AP:\{mAP3d[j, 0]:.2f\}, "}{\cf1 \par
+}{\cf1                              }f{\cf13 "\{mAP3d[j, 1]:.2f\}, "}{\cf1 \par
+}{\cf1                              }f{\cf13 "\{mAP3d[j, 2]:.2f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }compute_aos:{\cf1 \par
+}{\cf1             }{\cf9 result}{\cf1  }{\cf6 +=}{\cf1  }print_str{\cf6 (}{\cf6 (}f{\cf13 "aos  AP:\{mAPaos[j, 0]:.2f\}, "}{\cf1 \par
+}{\cf1                                  }f{\cf13 "\{mAPaos[j, 1]:.2f\}, "}{\cf1 \par
+}{\cf1                                  }f{\cf13 "\{mAPaos[j, 2]:.2f\}"}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1     }{\cf3\b return}{\cf1  }result{\cf1 \par
+}}

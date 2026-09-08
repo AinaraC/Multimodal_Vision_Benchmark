@@ -1,0 +1,328 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 {\cf2\i # Copyright (c) OpenMMLab. All rights reserved.}{\cf1 \par
+}{\cf2\i # ?????https://github.com/open-mmlab/mmdetection3d/issues/2617???LCl159???loading??, https://github.com/Lcl159}{\cf1 \par
+}{\cf2\i # Copyright (c) OpenMMLab. All rights reserved.}{\cf1 \par
+}import{\cf1  }copy{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 typing}{\cf1  }import{\cf1  }Optional{\cf1 \par
+}{\cf1 \par
+}import{\cf1  }mmcv{\cf1 \par
+}import{\cf1  }numpy{\cf1  }as{\cf1  }np{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmengine.fileio}{\cf1  }import{\cf1  }get{\cf1 \par
+}{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmdet3d.datasets.transforms}{\cf1  }import{\cf1  }LoadMultiViewImageFromFiles{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmdet3d.registry}{\cf1  }import{\cf1  }TRANSFORMS{\cf1 \par
+}{\cf1 \par
+}@TRANSFORMS.register_module{\cf6 (}{\cf6 )}{\cf1 \par
+}class{\cf1  }BEVLoadKittiImageFromFiles{\cf6 (}LoadMultiViewImageFromFiles{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf13 Load multi channel images from a list of separate channel files.}{\cf1 \par
+}{\cf1     }{\cf13 `}{\cf13 `}BEVLoadMultiViewImageFromFiles{\cf13 `}{\cf13 `}{\cf1  }adds{\cf1  }the{\cf1  }following{\cf1  }keys{\cf1  }{\cf3\b for}{\cf1  }the{\cf1 \par
+}{\cf1     }convenience{\cf1  }of{\cf1  }view{\cf1  }transforms{\cf1  }{\cf3\b in}{\cf1  }the{\cf1  }forward:{\cf1 \par
+}{\cf1         }-{\cf1  }{\cf13 'cam2lidar'}{\cf1 \par
+}{\cf1         }-{\cf1  }{\cf13 'lidar2img'}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }Args:{\cf1 \par
+}{\cf1         }to_float32{\cf1  }{\cf6 (}bool{\cf6 )}:{\cf1  }Whether{\cf1  }to{\cf1  }convert{\cf1  }the{\cf1  }img{\cf1  }to{\cf1  }float32.{\cf1 \par
+}{\cf1             }Defaults{\cf1  }to{\cf1  }False.{\cf1 \par
+}{\cf1         }color_type{\cf1  }{\cf6 (}str{\cf6 )}:{\cf1  }Color{\cf1  }{\cf3 type}{\cf1  }of{\cf1  }the{\cf1  }file.{\cf1  }Defaults{\cf1  }to{\cf1  }{\cf13 'unchanged'}.{\cf1 \par
+}{\cf1         }backend_args{\cf1  }{\cf6 (}dict,{\cf1  }optional{\cf6 )}:{\cf1  }Arguments{\cf1  }to{\cf1  }instantiate{\cf1  }the{\cf1 \par
+}{\cf1             }corresponding{\cf1  }backend.{\cf1  }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1         }num_views{\cf1  }{\cf6 (}int{\cf6 )}:{\cf1  }Number{\cf1  }of{\cf1  }view{\cf1  }{\cf3\b in}{\cf1  }a{\cf1  }frame.{\cf1  }Defaults{\cf1  }to{\cf1  }{\cf20 5}.{\cf1 \par
+}{\cf1         }num_ref_frames{\cf1  }{\cf6 (}int{\cf6 )}:{\cf1  }Number{\cf1  }of{\cf1  }frame{\cf1  }{\cf3\b in}{\cf1  }loading.{\cf1  }Defaults{\cf1  }to{\cf1  }-1.{\cf1 \par
+}{\cf1         }test_mode{\cf1  }{\cf6 (}bool{\cf6 )}:{\cf1  }Whether{\cf1  }is{\cf1  }{\cf3 test}{\cf1  }mode{\cf1  }{\cf3\b in}{\cf1  }loading.{\cf1  }Defaults{\cf1  }to{\cf1  }False.{\cf1 \par
+}{\cf1         }set_default_scale{\cf1  }{\cf6 (}bool{\cf6 )}:{\cf1  }Whether{\cf1  }to{\cf1  }{\cf3 set}{\cf1  }default{\cf1  }scale.{\cf1 \par
+}{\cf1             }Defaults{\cf1  }to{\cf1  }True.{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }transform{\cf6 (}self,{\cf1  }results:{\cf1  }dict{\cf6 )}{\cf1  }->{\cf1  }Optional{\cf6 [}dict{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Call function to load multi-view image from files.}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }results{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }Result{\cf1  }dict{\cf1  }containing{\cf1  }multi-view{\cf1  }image{\cf1  }filenames.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Returns:{\cf1 \par
+}{\cf1             }dict:{\cf1  }The{\cf1  }result{\cf1  }dict{\cf1  }containing{\cf1  }the{\cf1  }multi-view{\cf1  }image{\cf1  }data.{\cf1 \par
+}{\cf1             }Added{\cf1  }keys{\cf1  }and{\cf1  }values{\cf1  }are{\cf1  }described{\cf1  }below.{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }-{\cf1  }filename{\cf1  }{\cf6 (}str{\cf6 )}:{\cf1  }Multi-view{\cf1  }image{\cf1  }filenames.{\cf1 \par
+}{\cf1                 }-{\cf1  }img{\cf1  }{\cf6 (}np.ndarray{\cf6 )}:{\cf1  }Multi-view{\cf1  }image{\cf1  }arrays.{\cf1 \par
+}{\cf1                 }-{\cf1  }img_shape{\cf1  }{\cf6 (}tuple{\cf6 [}int{\cf6 ]}{\cf6 )}:{\cf1  }Shape{\cf1  }of{\cf1  }multi-view{\cf1  }image{\cf1  }arrays.{\cf1 \par
+}{\cf1                 }-{\cf1  }ori_shape{\cf1  }{\cf6 (}tuple{\cf6 [}int{\cf6 ]}{\cf6 )}:{\cf1  }Shape{\cf1  }of{\cf1  }original{\cf1  }image{\cf1  }arrays.{\cf1 \par
+}{\cf1                 }-{\cf1  }pad_shape{\cf1  }{\cf6 (}tuple{\cf6 [}int{\cf6 ]}{\cf6 )}:{\cf1  }Shape{\cf1  }of{\cf1  }padded{\cf1  }image{\cf1  }arrays.{\cf1 \par
+}{\cf1                 }-{\cf1  }scale_factor{\cf1  }{\cf6 (}float{\cf6 )}:{\cf1  }Scale{\cf1  }factor.{\cf1 \par
+}{\cf1                 }-{\cf1  }img_norm_cfg{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }Normalization{\cf1  }configuration{\cf1  }of{\cf1  }images.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }#{\cf1  }TODO:{\cf1  }consider{\cf1  }split{\cf1  }the{\cf1  }multi-sweep{\cf1  }part{\cf1  }out{\cf1  }of{\cf1  }this{\cf1  }pipeline{\cf1 \par
+}{\cf1         }#{\cf1  }Derive{\cf1  }the{\cf1  }mask{\cf1  }and{\cf1  }transform{\cf1  }{\cf3\b for}{\cf1  }loading{\cf1  }of{\cf1  }multi-sweep{\cf1  }data{\cf1 \par
+}{\cf1         }#{\cf1  }Support{\cf1  }multi-view{\cf1  }images{\cf1  }with{\cf1  }different{\cf1  }shapes{\cf1 \par
+}{\cf1         }#{\cf1  }TODO:{\cf1  }record{\cf1  }the{\cf1  }origin{\cf1  }shape{\cf1  }and{\cf1  }padded{\cf1  }shape{\cf1 \par
+}{\cf1         }{\cf1 \par
+}{\cf1         }filename,{\cf1  }cam2img,{\cf1  }lidar2cam,{\cf1  }cam2lidar,{\cf1  }{\cf9 lidar2img}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1         }filename.append{\cf6 (}results{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}{\cf13 'CAM2'}{\cf6 ]}{\cf6 [}{\cf13 'img_path'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }lidar2cam.append{\cf6 (}results{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}{\cf13 'CAM2'}{\cf6 ]}{\cf6 [}{\cf13 'lidar2cam'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 lidar2cam_array}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}results{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}{\cf13 'CAM2'}{\cf6 ]}{\cf6 [}{\cf13 'lidar2cam'}{\cf6 ]}{\cf6 )}.astype{\cf6 (}{\cf1 \par
+}{\cf1                 }np.float32{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 lidar2cam_rot}{\cf1  }{\cf6 =}{\cf1  }lidar2cam_array{\cf6 [}:3,{\cf1  }:3{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 lidar2cam_trans}{\cf1  }{\cf6 =}{\cf1  }lidar2cam_array{\cf6 [}:3,{\cf1  }{\cf20 3}:4{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 camera2lidar}{\cf1  }{\cf6 =}{\cf1  }np.eye{\cf6 (}{\cf20 4}{\cf6 )}{\cf1 \par
+}{\cf1         }camera2lidar{\cf6 [}:3,{\cf1  }:3{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }lidar2cam_rot.T{\cf1 \par
+}{\cf1         }camera2lidar{\cf6 [}:3,{\cf1  }{\cf20 3}:4{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }-1{\cf1  }*{\cf1  }np.matmul{\cf6 (}{\cf1 \par
+}{\cf1             }lidar2cam_rot.T,{\cf1  }lidar2cam_trans.reshape{\cf6 (}{\cf20 3},{\cf1  }{\cf20 1}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }cam2lidar.append{\cf6 (}camera2lidar{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 cam2img_array}{\cf1  }{\cf6 =}{\cf1  }np.eye{\cf6 (}{\cf20 4}{\cf6 )}.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1         }cam2img_array{\cf6 [}:3,{\cf1  }:3{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}results{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}{\cf13 'CAM2'}{\cf6 ]}{\cf6 [}{\cf13 'cam2img'}{\cf6 ]}{\cf6 )}{\cf6 [}:3,{\cf1  }:3{\cf6 ]}.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1         }cam2img.append{\cf6 (}cam2img_array{\cf6 )}{\cf1 \par
+}{\cf1         }lidar2img.append{\cf6 (}cam2img_array{\cf1  }@{\cf1  }lidar2cam_array{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'img_path'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }filename{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'cam2img'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}cam2img,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'lidar2cam'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}lidar2cam,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'cam2lidar'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}cam2lidar,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'lidar2img'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}lidar2img,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'ori_cam2img'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }copy.deepcopy{\cf6 (}results{\cf6 [}{\cf13 'cam2img'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }img{\cf1  }is{\cf1  }of{\cf1  }shape{\cf1  }{\cf6 (}h,{\cf1  }w,{\cf1  }c,{\cf1  }num_views{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }h{\cf1  }and{\cf1  }w{\cf1  }can{\cf1  }be{\cf1  }different{\cf1  }{\cf3\b for}{\cf1  }different{\cf1  }views{\cf1 \par
+}{\cf1         }{\cf9 img_bytes}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1             }get{\cf6 (}name,{\cf1  }{\cf9 backend_args}{\cf6 =}self.backend_args{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }name{\cf1  }{\cf3\b in}{\cf1  }filename{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 imgs}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1             }mmcv.imfrombytes{\cf6 (}{\cf1 \par
+}{\cf1                 }img_byte,{\cf1 \par
+}{\cf1                 }{\cf9 flag}{\cf6 =}self.color_type,{\cf1 \par
+}{\cf1                 }{\cf9 backend}{\cf6 =}{\cf13 'pillow'},{\cf1 \par
+}{\cf1                 }{\cf9 channel_order}{\cf6 =}{\cf13 'rgb'}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }img_byte{\cf1  }{\cf3\b in}{\cf1  }img_bytes{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf1 \par
+}{\cf1         }#{\cf1  }handle{\cf1  }the{\cf1  }image{\cf1  }with{\cf1  }different{\cf1  }shape{\cf1 \par
+}{\cf1         }{\cf9 img_shapes}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}{\cf6 [}img.shape{\cf1  }{\cf3\b for}{\cf1  }img{\cf1  }{\cf3\b in}{\cf1  }imgs{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 img_shape_max}{\cf1  }{\cf6 =}{\cf1  }np.max{\cf6 (}img_shapes,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 img_shape_min}{\cf1  }{\cf6 =}{\cf1  }np.min{\cf6 (}img_shapes,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }assert{\cf1  }img_shape_min{\cf6 [}-1{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }img_shape_max{\cf6 [}-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }not{\cf1  }np.all{\cf6 (}{\cf9 img_shape_max}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }img_shape_min{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 pad_shape}{\cf1  }{\cf6 =}{\cf1  }img_shape_max{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 pad_shape}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }pad_shape{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1             }{\cf9 imgs}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1                 }mmcv.impad{\cf6 (}img,{\cf1  }{\cf9 shape}{\cf6 =}pad_shape,{\cf1  }{\cf9 pad_val}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }img{\cf1  }{\cf3\b in}{\cf1  }imgs{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}imgs,{\cf1  }{\cf9 axis}{\cf6 =}-1{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.to_float32:{\cf1 \par
+}{\cf1             }{\cf9 img}{\cf1  }{\cf6 =}{\cf1  }img.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'filename'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }filename{\cf1 \par
+}{\cf1         }#{\cf1  }unravel{\cf1  }to{\cf1  }list,{\cf1  }see{\cf1  }{\cf13 `}DefaultFormatBundle{\cf13 `}{\cf1  }{\cf3\b in}{\cf1  }formating.py{\cf1 \par
+}{\cf1         }#{\cf1  }which{\cf1  }will{\cf1  }transpose{\cf1  }each{\cf1  }image{\cf1  }separately{\cf1  }and{\cf1  }{\cf3\b then}{\cf1  }stack{\cf1  }into{\cf1  }array{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'img'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}img{\cf6 [}...,{\cf1  }i{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}img.shape{\cf6 [}-1{\cf6 ]}{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'img_shape'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }img.shape{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'ori_shape'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }img.shape{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1         }#{\cf1  }Set{\cf1  }initial{\cf1  }values{\cf1  }{\cf3\b for}{\cf1  }default{\cf1  }meta_keys{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'pad_shape'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }img.shape{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.set_default_scale:{\cf1 \par
+}{\cf1             }results{\cf6 [}{\cf13 'scale_factor'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}.0{\cf1 \par
+}{\cf1         }{\cf9 num_channels}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1  }{\cf3\b if}{\cf1  }len{\cf6 (}img.shape{\cf6 )}{\cf1  }<{\cf1  }{\cf20 3}{\cf1  }{\cf3\b else}{\cf1  }img.shape{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'img_norm_cfg'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 mean}{\cf6 =}np.zeros{\cf6 (}num_channels,{\cf1  }{\cf9 dtype}{\cf6 =}np.float32{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf9 std}{\cf6 =}np.ones{\cf6 (}num_channels,{\cf1  }{\cf9 dtype}{\cf6 =}np.float32{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf9 to_rgb}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'num_views'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }self.num_views{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'num_ref_frames'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }self.num_ref_frames{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }results{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}@TRANSFORMS.register_module{\cf6 (}{\cf6 )}{\cf1 \par
+}class{\cf1  }BEVLoadMultiViewImageFromFiles{\cf6 (}LoadMultiViewImageFromFiles{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf13 Load multi channel images from a list of separate channel files.}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }{\cf13 `}{\cf13 `}BEVLoadMultiViewImageFromFiles{\cf13 `}{\cf13 `}{\cf1  }adds{\cf1  }the{\cf1  }following{\cf1  }keys{\cf1  }{\cf3\b for}{\cf1  }the{\cf1 \par
+}{\cf1     }convenience{\cf1  }of{\cf1  }view{\cf1  }transforms{\cf1  }{\cf3\b in}{\cf1  }the{\cf1  }forward:{\cf1 \par
+}{\cf1         }-{\cf1  }{\cf13 'cam2lidar'}{\cf1 \par
+}{\cf1         }-{\cf1  }{\cf13 'lidar2img'}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }Args:{\cf1 \par
+}{\cf1         }to_float32{\cf1  }{\cf6 (}bool{\cf6 )}:{\cf1  }Whether{\cf1  }to{\cf1  }convert{\cf1  }the{\cf1  }img{\cf1  }to{\cf1  }float32.{\cf1 \par
+}{\cf1             }Defaults{\cf1  }to{\cf1  }False.{\cf1 \par
+}{\cf1         }color_type{\cf1  }{\cf6 (}str{\cf6 )}:{\cf1  }Color{\cf1  }{\cf3 type}{\cf1  }of{\cf1  }the{\cf1  }file.{\cf1  }Defaults{\cf1  }to{\cf1  }{\cf13 'unchanged'}.{\cf1 \par
+}{\cf1         }backend_args{\cf1  }{\cf6 (}dict,{\cf1  }optional{\cf6 )}:{\cf1  }Arguments{\cf1  }to{\cf1  }instantiate{\cf1  }the{\cf1 \par
+}{\cf1             }corresponding{\cf1  }backend.{\cf1  }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1         }num_views{\cf1  }{\cf6 (}int{\cf6 )}:{\cf1  }Number{\cf1  }of{\cf1  }view{\cf1  }{\cf3\b in}{\cf1  }a{\cf1  }frame.{\cf1  }Defaults{\cf1  }to{\cf1  }{\cf20 5}.{\cf1 \par
+}{\cf1         }num_ref_frames{\cf1  }{\cf6 (}int{\cf6 )}:{\cf1  }Number{\cf1  }of{\cf1  }frame{\cf1  }{\cf3\b in}{\cf1  }loading.{\cf1  }Defaults{\cf1  }to{\cf1  }-1.{\cf1 \par
+}{\cf1         }test_mode{\cf1  }{\cf6 (}bool{\cf6 )}:{\cf1  }Whether{\cf1  }is{\cf1  }{\cf3 test}{\cf1  }mode{\cf1  }{\cf3\b in}{\cf1  }loading.{\cf1  }Defaults{\cf1  }to{\cf1  }False.{\cf1 \par
+}{\cf1         }set_default_scale{\cf1  }{\cf6 (}bool{\cf6 )}:{\cf1  }Whether{\cf1  }to{\cf1  }{\cf3 set}{\cf1  }default{\cf1  }scale.{\cf1 \par
+}{\cf1             }Defaults{\cf1  }to{\cf1  }True.{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }transform{\cf6 (}self,{\cf1  }results:{\cf1  }dict{\cf6 )}{\cf1  }->{\cf1  }Optional{\cf6 [}dict{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Call function to load multi-view image from files.}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }results{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }Result{\cf1  }dict{\cf1  }containing{\cf1  }multi-view{\cf1  }image{\cf1  }filenames.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Returns:{\cf1 \par
+}{\cf1             }dict:{\cf1  }The{\cf1  }result{\cf1  }dict{\cf1  }containing{\cf1  }the{\cf1  }multi-view{\cf1  }image{\cf1  }data.{\cf1 \par
+}{\cf1             }Added{\cf1  }keys{\cf1  }and{\cf1  }values{\cf1  }are{\cf1  }described{\cf1  }below.{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }-{\cf1  }filename{\cf1  }{\cf6 (}str{\cf6 )}:{\cf1  }Multi-view{\cf1  }image{\cf1  }filenames.{\cf1 \par
+}{\cf1                 }-{\cf1  }img{\cf1  }{\cf6 (}np.ndarray{\cf6 )}:{\cf1  }Multi-view{\cf1  }image{\cf1  }arrays.{\cf1 \par
+}{\cf1                 }-{\cf1  }img_shape{\cf1  }{\cf6 (}tuple{\cf6 [}int{\cf6 ]}{\cf6 )}:{\cf1  }Shape{\cf1  }of{\cf1  }multi-view{\cf1  }image{\cf1  }arrays.{\cf1 \par
+}{\cf1                 }-{\cf1  }ori_shape{\cf1  }{\cf6 (}tuple{\cf6 [}int{\cf6 ]}{\cf6 )}:{\cf1  }Shape{\cf1  }of{\cf1  }original{\cf1  }image{\cf1  }arrays.{\cf1 \par
+}{\cf1                 }-{\cf1  }pad_shape{\cf1  }{\cf6 (}tuple{\cf6 [}int{\cf6 ]}{\cf6 )}:{\cf1  }Shape{\cf1  }of{\cf1  }padded{\cf1  }image{\cf1  }arrays.{\cf1 \par
+}{\cf1                 }-{\cf1  }scale_factor{\cf1  }{\cf6 (}float{\cf6 )}:{\cf1  }Scale{\cf1  }factor.{\cf1 \par
+}{\cf1                 }-{\cf1  }img_norm_cfg{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }Normalization{\cf1  }configuration{\cf1  }of{\cf1  }images.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }#{\cf1  }TODO:{\cf1  }consider{\cf1  }split{\cf1  }the{\cf1  }multi-sweep{\cf1  }part{\cf1  }out{\cf1  }of{\cf1  }this{\cf1  }pipeline{\cf1 \par
+}{\cf1         }#{\cf1  }Derive{\cf1  }the{\cf1  }mask{\cf1  }and{\cf1  }transform{\cf1  }{\cf3\b for}{\cf1  }loading{\cf1  }of{\cf1  }multi-sweep{\cf1  }data{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.num_ref_frames{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }#{\cf1  }init{\cf1  }choice{\cf1  }with{\cf1  }the{\cf1  }current{\cf1  }frame{\cf1 \par
+}{\cf1             }{\cf9 init_choice}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }{\cf9 dtype}{\cf6 =}np.int64{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 num_frames}{\cf1  }{\cf6 =}{\cf1  }len{\cf6 (}results{\cf6 [}{\cf13 'img_filename'}{\cf6 ]}{\cf6 )}{\cf1  }//{\cf1  }self.num_views{\cf1  }-{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf9 num_frames}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1   }#{\cf1  }no{\cf1  }previous{\cf1  }frame,{\cf1  }{\cf3\b then}{\cf1  }copy{\cf1  }cur{\cf1  }frames{\cf1 \par
+}{\cf1                 }{\cf9 choices}{\cf1  }{\cf6 =}{\cf1  }np.random.choice{\cf6 (}{\cf1 \par
+}{\cf1                     }{\cf20 1},{\cf1  }self.num_ref_frames,{\cf1  }{\cf9 replace}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b elif}{\cf1  }num_frames{\cf1  }>{\cf6 =}{\cf1  }self.num_ref_frames:{\cf1 \par
+}{\cf1                 }#{\cf1  }NOTE:{\cf1  }suppose{\cf1  }the{\cf1  }info{\cf1  }is{\cf1  }saved{\cf1  }following{\cf1  }the{\cf1  }order{\cf1 \par
+}{\cf1                 }#{\cf1  }from{\cf1  }latest{\cf1  }to{\cf1  }earlier{\cf1  }frames{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }self.test_mode:{\cf1 \par
+}{\cf1                     }{\cf9 choices}{\cf1  }{\cf6 =}{\cf1  }np.arange{\cf6 (}num_frames{\cf1  }-{\cf1  }self.num_ref_frames,{\cf1 \par
+}{\cf1                                         }num_frames{\cf6 )}{\cf1  }+{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1                 }#{\cf1  }NOTE:{\cf1  }+1{\cf1  }is{\cf1  }{\cf3\b for}{\cf1  }selecting{\cf1  }previous{\cf1  }frames{\cf1 \par
+}{\cf1                 }{\cf3\b else}:{\cf1 \par
+}{\cf1                     }{\cf9 choices}{\cf1  }{\cf6 =}{\cf1  }np.random.choice{\cf6 (}{\cf1 \par
+}{\cf1                         }num_frames,{\cf1  }self.num_ref_frames,{\cf1  }{\cf9 replace}{\cf6 =}False{\cf6 )}{\cf1  }+{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }{\cf3\b elif}{\cf1  }num_frames{\cf1  }>{\cf1  }{\cf20 0}{\cf1  }and{\cf1  }num_frames{\cf1  }<{\cf1  }self.num_ref_frames:{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }self.test_mode:{\cf1 \par
+}{\cf1                     }{\cf9 base_choices}{\cf1  }{\cf6 =}{\cf1  }np.arange{\cf6 (}num_frames{\cf6 )}{\cf1  }+{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1                     }{\cf9 random_choices}{\cf1  }{\cf6 =}{\cf1  }np.random.choice{\cf6 (}{\cf1 \par
+}{\cf1                         }num_frames,{\cf1 \par
+}{\cf1                         }self.num_ref_frames{\cf1  }-{\cf1  }num_frames,{\cf1 \par
+}{\cf1                         }{\cf9 replace}{\cf6 =}True{\cf6 )}{\cf1  }+{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1                     }{\cf9 choices}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}base_choices,{\cf1  }random_choices{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf3\b else}:{\cf1 \par
+}{\cf1                     }{\cf9 choices}{\cf1  }{\cf6 =}{\cf1  }np.random.choice{\cf6 (}{\cf1 \par
+}{\cf1                         }num_frames,{\cf1  }self.num_ref_frames,{\cf1  }{\cf9 replace}{\cf6 =}True{\cf6 )}{\cf1  }+{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }raise{\cf1  }NotImplementedError{\cf1 \par
+}{\cf1             }{\cf9 choices}{\cf1  }{\cf6 =}{\cf1  }np.concatenate{\cf6 (}{\cf6 [}init_choice,{\cf1  }choices{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 select_filename}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }choice{\cf1  }{\cf3\b in}{\cf1  }choices:{\cf1 \par
+}{\cf1                 }{\cf9 select_filename}{\cf1  }{\cf6 +=}{\cf1  }results{\cf6 [}{\cf13 'img_filename'}{\cf6 ]}{\cf6 [}choice{\cf1  }*{\cf1 \par
+}{\cf1                                                            }self.num_views:{\cf1 \par
+}{\cf1                                                            }{\cf6 (}choice{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }*{\cf1 \par
+}{\cf1                                                            }self.num_views{\cf6 ]}{\cf1 \par
+}{\cf1             }results{\cf6 [}{\cf13 'img_filename'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }select_filename{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }key{\cf1  }{\cf3\b in}{\cf1  }{\cf6 [}{\cf13 'cam2img'},{\cf1  }{\cf13 'lidar2cam'}{\cf6 ]}:{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }key{\cf1  }{\cf3\b in}{\cf1  }results:{\cf1 \par
+}{\cf1                     }{\cf9 select_results}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf3\b for}{\cf1  }choice{\cf1  }{\cf3\b in}{\cf1  }choices:{\cf1 \par
+}{\cf1                         }{\cf9 select_results}{\cf1  }{\cf6 +=}{\cf1  }results{\cf6 [}key{\cf6 ]}{\cf6 [}choice{\cf1  }*{\cf1 \par
+}{\cf1                                                        }self.num_views:{\cf6 (}choice{\cf1  }+{\cf1 \par
+}{\cf1                                                                        }{\cf20 1}{\cf6 )}{\cf1  }*{\cf1 \par
+}{\cf1                                                        }self.num_views{\cf6 ]}{\cf1 \par
+}{\cf1                     }results{\cf6 [}key{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }select_results{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }key{\cf1  }{\cf3\b in}{\cf1  }{\cf6 [}{\cf13 'ego2global'}{\cf6 ]}:{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }key{\cf1  }{\cf3\b in}{\cf1  }results:{\cf1 \par
+}{\cf1                     }{\cf9 select_results}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf3\b for}{\cf1  }choice{\cf1  }{\cf3\b in}{\cf1  }choices:{\cf1 \par
+}{\cf1                         }{\cf9 select_results}{\cf1  }{\cf6 +=}{\cf1  }{\cf6 [}results{\cf6 [}key{\cf6 ]}{\cf6 [}choice{\cf6 ]}{\cf6 ]}{\cf1 \par
+}{\cf1                     }results{\cf6 [}key{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }select_results{\cf1 \par
+}{\cf1             }#{\cf1  }Transform{\cf1  }lidar2cam{\cf1  }to{\cf1 \par
+}{\cf1             }#{\cf1  }{\cf6 [}cur_lidar{\cf6 ]}{\cf20 2}{\cf6 [}prev_img{\cf6 ]}{\cf1  }and{\cf1  }{\cf6 [}cur_lidar{\cf6 ]}{\cf20 2}{\cf6 [}prev_cam{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }key{\cf1  }{\cf3\b in}{\cf1  }{\cf6 [}{\cf13 'lidar2cam'}{\cf6 ]}:{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }key{\cf1  }{\cf3\b in}{\cf1  }results:{\cf1 \par
+}{\cf1                     }#{\cf1  }only{\cf1  }change{\cf1  }matrices{\cf1  }of{\cf1  }previous{\cf1  }frames{\cf1 \par
+}{\cf1                     }{\cf3\b for}{\cf1  }choice_idx{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}{\cf20 1},{\cf1  }len{\cf6 (}choices{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                         }{\cf9 pad_prev_ego2global}{\cf1  }{\cf6 =}{\cf1  }np.eye{\cf6 (}{\cf20 4}{\cf6 )}{\cf1 \par
+}{\cf1                         }{\cf9 prev_ego2global}{\cf1  }{\cf6 =}{\cf1  }results{\cf6 [}{\cf13 'ego2global'}{\cf6 ]}{\cf6 [}choice_idx{\cf6 ]}{\cf1 \par
+}{\cf1                         }pad_prev_ego2global{\cf6 [}:prev_ego2global.{\cf1 \par
+}{\cf1                                             }shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:prev_ego2global.{\cf1 \par
+}{\cf1                                             }shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }prev_ego2global{\cf1 \par
+}{\cf1                         }{\cf9 pad_cur_ego2global}{\cf1  }{\cf6 =}{\cf1  }np.eye{\cf6 (}{\cf20 4}{\cf6 )}{\cf1 \par
+}{\cf1                         }{\cf9 cur_ego2global}{\cf1  }{\cf6 =}{\cf1  }results{\cf6 [}{\cf13 'ego2global'}{\cf6 ]}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1                         }pad_cur_ego2global{\cf6 [}:cur_ego2global.{\cf1 \par
+}{\cf1                                            }shape{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }:cur_ego2global.{\cf1 \par
+}{\cf1                                            }shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }cur_ego2global{\cf1 \par
+}{\cf1                         }{\cf9 cur2prev}{\cf1  }{\cf6 =}{\cf1  }np.linalg.inv{\cf6 (}pad_prev_ego2global{\cf6 )}.dot{\cf6 (}{\cf1 \par
+}{\cf1                             }pad_cur_ego2global{\cf6 )}{\cf1 \par
+}{\cf1                         }{\cf3\b for}{\cf1  }result_idx{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}choice_idx{\cf1  }*{\cf1  }self.num_views,{\cf1 \par
+}{\cf1                                                 }{\cf6 (}choice_idx{\cf1  }+{\cf1  }{\cf20 1}{\cf6 )}{\cf1  }*{\cf1 \par
+}{\cf1                                                 }self.num_views{\cf6 )}:{\cf1 \par
+}{\cf1                             }results{\cf6 [}key{\cf6 ]}{\cf6 [}result_idx{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf13\b \\\par
+}{\cf1                                 }results{\cf6 [}key{\cf6 ]}{\cf6 [}result_idx{\cf6 ]}.dot{\cf6 (}cur2prev{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }Support{\cf1  }multi-view{\cf1  }images{\cf1  }with{\cf1  }different{\cf1  }shapes{\cf1 \par
+}{\cf1         }#{\cf1  }TODO:{\cf1  }record{\cf1  }the{\cf1  }origin{\cf1  }shape{\cf1  }and{\cf1  }padded{\cf1  }shape{\cf1 \par
+}{\cf1         }filename,{\cf1  }cam2img,{\cf1  }lidar2cam,{\cf1  }cam2lidar,{\cf1  }{\cf9 lidar2img}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]},{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }_,{\cf1  }cam_item{\cf1  }{\cf3\b in}{\cf1  }results{\cf6 [}{\cf13 'images'}{\cf6 ]}.items{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1             }filename.append{\cf6 (}cam_item{\cf6 [}{\cf13 'img_path'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1             }lidar2cam.append{\cf6 (}cam_item{\cf6 [}{\cf13 'lidar2cam'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 lidar2cam_array}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}cam_item{\cf6 [}{\cf13 'lidar2cam'}{\cf6 ]}{\cf6 )}.astype{\cf6 (}{\cf1 \par
+}{\cf1                 }np.float32{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 lidar2cam_rot}{\cf1  }{\cf6 =}{\cf1  }lidar2cam_array{\cf6 [}:3,{\cf1  }:3{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 lidar2cam_trans}{\cf1  }{\cf6 =}{\cf1  }lidar2cam_array{\cf6 [}:3,{\cf1  }{\cf20 3}:4{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 camera2lidar}{\cf1  }{\cf6 =}{\cf1  }np.eye{\cf6 (}{\cf20 4}{\cf6 )}{\cf1 \par
+}{\cf1             }camera2lidar{\cf6 [}:3,{\cf1  }:3{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }lidar2cam_rot.T{\cf1 \par
+}{\cf1             }camera2lidar{\cf6 [}:3,{\cf1  }{\cf20 3}:4{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }-1{\cf1  }*{\cf1  }np.matmul{\cf6 (}{\cf1 \par
+}{\cf1                 }lidar2cam_rot.T,{\cf1  }lidar2cam_trans.reshape{\cf6 (}{\cf20 3},{\cf1  }{\cf20 1}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }cam2lidar.append{\cf6 (}camera2lidar{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 cam2img_array}{\cf1  }{\cf6 =}{\cf1  }np.eye{\cf6 (}{\cf20 4}{\cf6 )}.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1             }cam2img_array{\cf6 [}:3,{\cf1  }:3{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}cam_item{\cf6 [}{\cf13 'cam2img'}{\cf6 ]}{\cf6 )}.astype{\cf6 (}{\cf1 \par
+}{\cf1                 }np.float32{\cf6 )}{\cf1 \par
+}{\cf1             }cam2img.append{\cf6 (}cam2img_array{\cf6 )}{\cf1 \par
+}{\cf1             }lidar2img.append{\cf6 (}cam2img_array{\cf1  }@{\cf1  }lidar2cam_array{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'img_path'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }filename{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'cam2img'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}cam2img,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'lidar2cam'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}lidar2cam,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'cam2lidar'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}cam2lidar,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'lidar2img'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}lidar2img,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'ori_cam2img'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }copy.deepcopy{\cf6 (}results{\cf6 [}{\cf13 'cam2img'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }img{\cf1  }is{\cf1  }of{\cf1  }shape{\cf1  }{\cf6 (}h,{\cf1  }w,{\cf1  }c,{\cf1  }num_views{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }h{\cf1  }and{\cf1  }w{\cf1  }can{\cf1  }be{\cf1  }different{\cf1  }{\cf3\b for}{\cf1  }different{\cf1  }views{\cf1 \par
+}{\cf1         }{\cf9 img_bytes}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1             }get{\cf6 (}name,{\cf1  }{\cf9 backend_args}{\cf6 =}self.backend_args{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }name{\cf1  }{\cf3\b in}{\cf1  }filename{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 imgs}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1             }mmcv.imfrombytes{\cf6 (}{\cf1 \par
+}{\cf1                 }img_byte,{\cf1 \par
+}{\cf1                 }{\cf9 flag}{\cf6 =}self.color_type,{\cf1 \par
+}{\cf1                 }{\cf9 backend}{\cf6 =}{\cf13 'pillow'},{\cf1 \par
+}{\cf1                 }{\cf9 channel_order}{\cf6 =}{\cf13 'rgb'}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }img_byte{\cf1  }{\cf3\b in}{\cf1  }img_bytes{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf1 \par
+}{\cf1         }#{\cf1  }handle{\cf1  }the{\cf1  }image{\cf1  }with{\cf1  }different{\cf1  }shape{\cf1 \par
+}{\cf1         }{\cf9 img_shapes}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}{\cf6 [}img.shape{\cf1  }{\cf3\b for}{\cf1  }img{\cf1  }{\cf3\b in}{\cf1  }imgs{\cf6 ]},{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 img_shape_max}{\cf1  }{\cf6 =}{\cf1  }np.max{\cf6 (}img_shapes,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 img_shape_min}{\cf1  }{\cf6 =}{\cf1  }np.min{\cf6 (}img_shapes,{\cf1  }{\cf9 axis}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1         }assert{\cf1  }img_shape_min{\cf6 [}-1{\cf6 ]}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }img_shape_max{\cf6 [}-1{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }not{\cf1  }np.all{\cf6 (}{\cf9 img_shape_max}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }img_shape_min{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 pad_shape}{\cf1  }{\cf6 =}{\cf1  }img_shape_max{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 pad_shape}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }pad_shape{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1             }{\cf9 imgs}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1                 }mmcv.impad{\cf6 (}img,{\cf1  }{\cf9 shape}{\cf6 =}pad_shape,{\cf1  }{\cf9 pad_val}{\cf6 =}{\cf20 0}{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }img{\cf1  }{\cf3\b in}{\cf1  }imgs{\cf1 \par
+}{\cf1             }{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 img}{\cf1  }{\cf6 =}{\cf1  }np.stack{\cf6 (}imgs,{\cf1  }{\cf9 axis}{\cf6 =}-1{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.to_float32:{\cf1 \par
+}{\cf1             }{\cf9 img}{\cf1  }{\cf6 =}{\cf1  }img.astype{\cf6 (}np.float32{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'filename'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }filename{\cf1 \par
+}{\cf1         }#{\cf1  }unravel{\cf1  }to{\cf1  }list,{\cf1  }see{\cf1  }{\cf13 `}DefaultFormatBundle{\cf13 `}{\cf1  }{\cf3\b in}{\cf1  }formating.py{\cf1 \par
+}{\cf1         }#{\cf1  }which{\cf1  }will{\cf1  }transpose{\cf1  }each{\cf1  }image{\cf1  }separately{\cf1  }and{\cf1  }{\cf3\b then}{\cf1  }stack{\cf1  }into{\cf1  }array{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'img'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}img{\cf6 [}...,{\cf1  }i{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}img.shape{\cf6 [}-1{\cf6 ]}{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'img_shape'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }img.shape{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'ori_shape'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }img.shape{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1         }#{\cf1  }Set{\cf1  }initial{\cf1  }values{\cf1  }{\cf3\b for}{\cf1  }default{\cf1  }meta_keys{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'pad_shape'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }img.shape{\cf6 [}:2{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.set_default_scale:{\cf1 \par
+}{\cf1             }results{\cf6 [}{\cf13 'scale_factor'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}.0{\cf1 \par
+}{\cf1         }{\cf9 num_channels}{\cf1  }{\cf6 =}{\cf1  }{\cf20 1}{\cf1  }{\cf3\b if}{\cf1  }len{\cf6 (}img.shape{\cf6 )}{\cf1  }<{\cf1  }{\cf20 3}{\cf1  }{\cf3\b else}{\cf1  }img.shape{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'img_norm_cfg'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 mean}{\cf6 =}np.zeros{\cf6 (}num_channels,{\cf1  }{\cf9 dtype}{\cf6 =}np.float32{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf9 std}{\cf6 =}np.ones{\cf6 (}num_channels,{\cf1  }{\cf9 dtype}{\cf6 =}np.float32{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf9 to_rgb}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'num_views'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }self.num_views{\cf1 \par
+}{\cf1         }results{\cf6 [}{\cf13 'num_ref_frames'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }self.num_ref_frames{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }results{\cf1 \par
+}}

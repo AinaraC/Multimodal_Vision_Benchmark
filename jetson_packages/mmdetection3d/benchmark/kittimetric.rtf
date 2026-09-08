@@ -1,0 +1,677 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 {\cf2\i # Copyright (c) OpenMMLab. All rights reserved.}{\cf1 \par
+}import{\cf1  }tempfile{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 os}{\cf1  }import{\cf1  }path{\cf1  }as{\cf1  }osp{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 os}{\cf1  }import{\cf1  }path{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 typing}{\cf1  }import{\cf1  }Dict,{\cf1  }List,{\cf1  }Optional,{\cf1  }Sequence,{\cf1  }Tuple,{\cf1  }Union{\cf1 \par
+}{\cf1 \par
+}import{\cf1  }mmengine{\cf1 \par
+}import{\cf1  }numpy{\cf1  }as{\cf1  }np{\cf1 \par
+}import{\cf1  }torch{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmengine}{\cf1  }import{\cf1  }load{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmengine.evaluator}{\cf1  }import{\cf1  }BaseMetric{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmengine.logging}{\cf1  }import{\cf1  }MMLogger,{\cf1  }print_log{\cf1 \par
+}{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmdet3d.evaluation}{\cf1  }import{\cf1  }kitti_eval{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmdet3d.registry}{\cf1  }import{\cf1  }METRICS{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmdet3d.structures}{\cf1  }import{\cf1  }{\cf6 (}Box3DMode,{\cf1  }CameraInstance3DBoxes,{\cf1 \par
+}{\cf1                                 }LiDARInstance3DBoxes,{\cf1  }points_cam2img{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}@METRICS.register_module{\cf6 (}{\cf6 )}{\cf1 \par
+}class{\cf1  }KittiMetric{\cf6 (}BaseMetric{\cf6 )}:{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf13 Kitti evaluation metric.}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }Args:{\cf1 \par
+}{\cf1         }ann_file{\cf1  }{\cf6 (}str{\cf6 )}:{\cf1  }Annotation{\cf1  }file{\cf1  }path.{\cf1 \par
+}{\cf1         }metric{\cf1  }{\cf6 (}str{\cf1  }or{\cf1  }List{\cf6 [}str{\cf6 ]}{\cf6 )}:{\cf1  }Metrics{\cf1  }to{\cf1  }be{\cf1  }evaluated.{\cf1  }Defaults{\cf1  }to{\cf1  }{\cf13 'bbox'}.{\cf1 \par
+}{\cf1         }pcd_limit_range{\cf1  }{\cf6 (}List{\cf6 [}float{\cf6 ]}{\cf6 )}:{\cf1  }The{\cf1  }range{\cf1  }of{\cf1  }point{\cf1  }cloud{\cf1  }used{\cf1  }to{\cf1  }filter{\cf1 \par
+}{\cf1             }invalid{\cf1  }predicted{\cf1  }boxes.{\cf1  }Defaults{\cf1  }to{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }-40,{\cf1  }-3,{\cf1  }{\cf20 70}.4,{\cf1  }{\cf20 40},{\cf1  }{\cf20 0}.0{\cf6 ]}.{\cf1 \par
+}{\cf1         }prefix{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }The{\cf1  }prefix{\cf1  }that{\cf1  }will{\cf1  }be{\cf1  }added{\cf1  }{\cf3\b in}{\cf1  }the{\cf1  }metric{\cf1 \par
+}{\cf1             }names{\cf1  }to{\cf1  }disambiguate{\cf1  }homonymous{\cf1  }metrics{\cf1  }of{\cf1  }different{\cf1  }evaluators.{\cf1 \par
+}{\cf1             }If{\cf1  }prefix{\cf1  }is{\cf1  }not{\cf1  }provided{\cf1  }{\cf3\b in}{\cf1  }the{\cf1  }argument,{\cf1  }self.default_prefix{\cf1  }will{\cf1 \par
+}{\cf1             }be{\cf1  }used{\cf1  }instead.{\cf1  }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1         }pklfile_prefix{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }The{\cf1  }prefix{\cf1  }of{\cf1  }pkl{\cf1  }files,{\cf1  }including{\cf1  }the{\cf1 \par
+}{\cf1             }file{\cf1  }path{\cf1  }and{\cf1  }the{\cf1  }prefix{\cf1  }of{\cf1  }filename,{\cf1  }e.g.,{\cf1  }{\cf13 "a/b/prefix"}.{\cf1  }If{\cf1  }not{\cf1 \par
+}{\cf1             }specified,{\cf1  }a{\cf1  }temp{\cf1  }file{\cf1  }will{\cf1  }be{\cf1  }created.{\cf1  }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1         }default_cam_key{\cf1  }{\cf6 (}str{\cf6 )}:{\cf1  }The{\cf1  }default{\cf1  }camera{\cf1  }{\cf3\b for}{\cf1  }lidar{\cf1  }to{\cf1  }camera{\cf1 \par
+}{\cf1             }conversion.{\cf1  }By{\cf1  }default,{\cf1  }KITTI:{\cf1  }{\cf13 'CAM2'},{\cf1  }Waymo:{\cf1  }{\cf13 'CAM_FRONT'}.{\cf1 \par
+}{\cf1             }Defaults{\cf1  }to{\cf1  }{\cf13 'CAM2'}.{\cf1 \par
+}{\cf1         }format_only{\cf1  }{\cf6 (}bool{\cf6 )}:{\cf1  }Format{\cf1  }the{\cf1  }output{\cf1  }results{\cf1  }without{\cf1  }perform{\cf1 \par
+}{\cf1             }evaluation.{\cf1  }It{\cf1  }is{\cf1  }useful{\cf1  }when{\cf1  }you{\cf1  }want{\cf1  }to{\cf1  }format{\cf1  }the{\cf1  }result{\cf1  }to{\cf1  }a{\cf1 \par
+}{\cf1             }specific{\cf1  }format{\cf1  }and{\cf1  }submit{\cf1  }it{\cf1  }to{\cf1  }the{\cf1  }{\cf3 test}{\cf1  }server.{\cf1 \par
+}{\cf1             }Defaults{\cf1  }to{\cf1  }False.{\cf1 \par
+}{\cf1         }submission_prefix{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }The{\cf1  }prefix{\cf1  }of{\cf1  }submission{\cf1  }data.{\cf1  }If{\cf1 \par
+}{\cf1             }not{\cf1  }specified,{\cf1  }the{\cf1  }submission{\cf1  }data{\cf1  }will{\cf1  }not{\cf1  }be{\cf1  }generated.{\cf1 \par
+}{\cf1             }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1         }collect_device{\cf1  }{\cf6 (}str{\cf6 )}:{\cf1  }Device{\cf1  }name{\cf1  }used{\cf1  }{\cf3\b for}{\cf1  }collecting{\cf1  }results{\cf1  }from{\cf1 \par
+}{\cf1             }different{\cf1  }ranks{\cf1  }during{\cf1  }distributed{\cf1  }training.{\cf1  }Must{\cf1  }be{\cf1  }{\cf13 'cpu'}{\cf1  }or{\cf1 \par
+}{\cf1             }{\cf13 'gpu'}.{\cf1  }Defaults{\cf1  }to{\cf1  }{\cf13 'cpu'}.{\cf1 \par
+}{\cf1         }backend_args{\cf1  }{\cf6 (}dict,{\cf1  }optional{\cf6 )}:{\cf1  }Arguments{\cf1  }to{\cf1  }instantiate{\cf1  }the{\cf1 \par
+}{\cf1             }corresponding{\cf1  }backend.{\cf1  }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1     }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }__init__{\cf6 (}self,{\cf1 \par
+}{\cf1                  }ann_file:{\cf1  }str,{\cf1 \par
+}{\cf1                  }corruption_savepath:{\cf1  }{\cf9 str}{\cf1  }{\cf6 =}{\cf1  }None{\cf1  },{\cf1 \par
+}{\cf1                  }model_name:{\cf1  }{\cf9 str}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1                  }corruption_eval:{\cf1  }{\cf9 bool}{\cf1  }{\cf6 =}{\cf1  }False{\cf1  },{\cf1 \par
+}{\cf1                  }metric:{\cf1  }Union{\cf6 [}str,{\cf1  }List{\cf6 [}str{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'bbox'},{\cf1 \par
+}{\cf1                  }pcd_limit_range:{\cf1  }List{\cf6 [}float{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }-40,{\cf1  }-3,{\cf1  }{\cf20 70}.4,{\cf1  }{\cf20 40},{\cf1  }{\cf20 0}.0{\cf6 ]},{\cf1 \par
+}{\cf1                  }prefix:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1                  }pklfile_prefix:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1                  }default_cam_key:{\cf1  }{\cf9 str}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'CAM2'},{\cf1 \par
+}{\cf1                  }format_only:{\cf1  }{\cf9 bool}{\cf1  }{\cf6 =}{\cf1  }False,{\cf1 \par
+}{\cf1                  }submission_prefix:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1                  }collect_device:{\cf1  }{\cf9 str}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'cpu'},{\cf1 \par
+}{\cf1                  }backend_args:{\cf1  }Optional{\cf6 [}dict{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }self.default_prefix{\cf1  }{\cf6 =}{\cf1  }{\cf13 'Kitti metric'}{\cf1 \par
+}{\cf1         }self.corruption_eval{\cf1  }{\cf6 =}{\cf1  }corruption_eval{\cf1 \par
+}{\cf1         }self.corruption_savepath{\cf1  }{\cf6 =}{\cf1  }corruption_savepath{\cf1 \par
+}{\cf1         }self.model_name{\cf1  }{\cf6 =}{\cf1  }model_name{\cf1 \par
+}{\cf1         }super{\cf6 (}KittiMetric,{\cf1  }self{\cf6 )}.__init__{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 collect_device}{\cf6 =}collect_device,{\cf1  }{\cf9 prefix}{\cf6 =}prefix{\cf6 )}{\cf1 \par
+}{\cf1         }self.pcd_limit_range{\cf1  }{\cf6 =}{\cf1  }pcd_limit_range{\cf1 \par
+}{\cf1         }self.ann_file{\cf1  }{\cf6 =}{\cf1  }ann_file{\cf1 \par
+}{\cf1         }self.pklfile_prefix{\cf1  }{\cf6 =}{\cf1  }pklfile_prefix{\cf1 \par
+}{\cf1         }self.format_only{\cf1  }{\cf6 =}{\cf1  }format_only{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.format_only:{\cf1 \par
+}{\cf1             }assert{\cf1  }submission_prefix{\cf1  }is{\cf1  }not{\cf1  }None,{\cf1  }{\cf13 'submission_prefix must be '}{\cf1 \par
+}{\cf1             }{\cf13 'not None when format_only is True, otherwise the result files '}{\cf1 \par
+}{\cf1             }{\cf13 'will be saved to a temp directory which will be cleaned up at '}{\cf1 \par
+}{\cf1             }{\cf13 'the end.'}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }self.submission_prefix{\cf1  }{\cf6 =}{\cf1  }submission_prefix{\cf1 \par
+}{\cf1         }self.default_cam_key{\cf1  }{\cf6 =}{\cf1  }default_cam_key{\cf1 \par
+}{\cf1         }self.backend_args{\cf1  }{\cf6 =}{\cf1  }backend_args{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 allowed_metrics}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'bbox'},{\cf1  }{\cf13 'img_bbox'},{\cf1  }{\cf13 'mAP'},{\cf1  }{\cf13 'LET_mAP'}{\cf6 ]}{\cf1 \par
+}{\cf1         }self.metrics{\cf1  }{\cf6 =}{\cf1  }metric{\cf1  }{\cf3\b if}{\cf1  }isinstance{\cf6 (}metric,{\cf1  }list{\cf6 )}{\cf1  }{\cf3\b else}{\cf1  }{\cf6 [}metric{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }metric{\cf1  }{\cf3\b in}{\cf1  }self.metrics:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }metric{\cf1  }not{\cf1  }{\cf3\b in}{\cf1  }allowed_metrics:{\cf1 \par
+}{\cf1                 }raise{\cf1  }KeyError{\cf6 (}{\cf13 "metric should be one of 'bbox', 'img_bbox', "}{\cf1 \par
+}{\cf1                                }f{\cf13 'but got \{metric\}.'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }convert_annos_to_kitti_annos{\cf6 (}self,{\cf1  }data_infos:{\cf1  }dict{\cf6 )}{\cf1  }->{\cf1  }List{\cf6 [}dict{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Convert loading annotations to Kitti annotations.}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }data_infos{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }Data{\cf1  }infos{\cf1  }including{\cf1  }metainfo{\cf1  }and{\cf1  }annotations{\cf1 \par
+}{\cf1                 }loaded{\cf1  }from{\cf1  }ann_file.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Returns:{\cf1 \par
+}{\cf1             }List{\cf6 [}dict{\cf6 ]}:{\cf1  }List{\cf1  }of{\cf1  }Kitti{\cf1  }annotations.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 data_annos}{\cf1  }{\cf6 =}{\cf1  }data_infos{\cf6 [}{\cf13 'data_list'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }not{\cf1  }self.format_only:{\cf1 \par
+}{\cf1             }{\cf9 cat2label}{\cf1  }{\cf6 =}{\cf1  }data_infos{\cf6 [}{\cf13 'metainfo'}{\cf6 ]}{\cf6 [}{\cf13 'categories'}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 label2cat}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf6 (}v,{\cf1  }k{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }{\cf6 (}k,{\cf1  }v{\cf6 )}{\cf1  }{\cf3\b in}{\cf1  }cat2label.items{\cf6 (}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }assert{\cf1  }{\cf13 'instances'}{\cf1  }{\cf3\b in}{\cf1  }data_annos{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }i,{\cf1  }annos{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}data_annos{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf3\b if}{\cf1  }len{\cf6 (}annos{\cf6 [}{\cf13 'instances'}{\cf6 ]}{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                     }{\cf9 kitti_annos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                         }{\cf13 'name'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                         }{\cf13 'truncated'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                         }{\cf13 'occluded'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                         }{\cf13 'alpha'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                         }{\cf13 'bbox'}:{\cf1  }np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                         }{\cf13 'dimensions'}:{\cf1  }np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 3}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                         }{\cf13 'location'}:{\cf1  }np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 3}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                         }{\cf13 'rotation_y'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                         }{\cf13 'score'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf6 \}}{\cf1 \par
+}{\cf1                 }{\cf3\b else}:{\cf1 \par
+}{\cf1                     }{\cf9 kitti_annos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                         }{\cf13 'name'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                         }{\cf13 'truncated'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                         }{\cf13 'occluded'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                         }{\cf13 'alpha'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                         }{\cf13 'bbox'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                         }{\cf13 'location'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                         }{\cf13 'dimensions'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                         }{\cf13 'rotation_y'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                         }{\cf13 'score'}:{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf6 \}}{\cf1 \par
+}{\cf1                     }{\cf3\b for}{\cf1  }instance{\cf1  }{\cf3\b in}{\cf1  }annos{\cf6 [}{\cf13 'instances'}{\cf6 ]}:{\cf1 \par
+}{\cf1                         }{\cf9 label}{\cf1  }{\cf6 =}{\cf1  }instance{\cf6 [}{\cf13 'bbox_label'}{\cf6 ]}{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}{\cf13 'name'}{\cf6 ]}.append{\cf6 (}label2cat{\cf6 [}label{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}{\cf13 'truncated'}{\cf6 ]}.append{\cf6 (}instance{\cf6 [}{\cf13 'truncated'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}{\cf13 'occluded'}{\cf6 ]}.append{\cf6 (}instance{\cf6 [}{\cf13 'occluded'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}{\cf13 'alpha'}{\cf6 ]}.append{\cf6 (}instance{\cf6 [}{\cf13 'alpha'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}{\cf13 'bbox'}{\cf6 ]}.append{\cf6 (}instance{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}{\cf13 'location'}{\cf6 ]}.append{\cf6 (}instance{\cf6 [}{\cf13 'bbox_3d'}{\cf6 ]}{\cf6 [}:3{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}{\cf13 'dimensions'}{\cf6 ]}.append{\cf6 (}{\cf1 \par
+}{\cf1                             }instance{\cf6 [}{\cf13 'bbox_3d'}{\cf6 ]}{\cf6 [}{\cf20 3}:6{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}{\cf13 'rotation_y'}{\cf6 ]}.append{\cf6 (}{\cf1 \par
+}{\cf1                             }instance{\cf6 [}{\cf13 'bbox_3d'}{\cf6 ]}{\cf6 [}{\cf20 6}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}{\cf13 'score'}{\cf6 ]}.append{\cf6 (}instance{\cf6 [}{\cf13 'score'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b for}{\cf1  }name{\cf1  }{\cf3\b in}{\cf1  }kitti_annos:{\cf1 \par
+}{\cf1                         }kitti_annos{\cf6 [}name{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}kitti_annos{\cf6 [}name{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }data_annos{\cf6 [}i{\cf6 ]}{\cf6 [}{\cf13 'kitti_annos'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }kitti_annos{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }data_annos{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }process{\cf6 (}self,{\cf1  }data_batch:{\cf1  }dict,{\cf1  }data_samples:{\cf1  }Sequence{\cf6 [}dict{\cf6 ]}{\cf6 )}{\cf1  }->{\cf1  }None:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Process one batch of data samples and predictions.}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }The{\cf1  }processed{\cf1  }results{\cf1  }should{\cf1  }be{\cf1  }stored{\cf1  }{\cf3\b in}{\cf1  }{\cf13 `}{\cf13 `}self.results{\cf13 `}{\cf13 `},{\cf1  }which{\cf1  }will{\cf1 \par
+}{\cf1         }be{\cf1  }used{\cf1  }to{\cf1  }compute{\cf1  }the{\cf1  }metrics{\cf1  }when{\cf1  }all{\cf1  }batches{\cf1  }have{\cf1  }been{\cf1  }processed.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }data_batch{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }A{\cf1  }batch{\cf1  }of{\cf1  }data{\cf1  }from{\cf1  }the{\cf1  }dataloader.{\cf1 \par
+}{\cf1             }data_samples{\cf1  }{\cf6 (}Sequence{\cf6 [}dict{\cf6 ]}{\cf6 )}:{\cf1  }A{\cf1  }batch{\cf1  }of{\cf1  }outputs{\cf1  }from{\cf1  }the{\cf1  }model.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }data_sample{\cf1  }{\cf3\b in}{\cf1  }data_samples:{\cf1 \par
+}{\cf1             }{\cf9 result}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 pred_3d}{\cf1  }{\cf6 =}{\cf1  }data_sample{\cf6 [}{\cf13 'pred_instances_3d'}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 pred_2d}{\cf1  }{\cf6 =}{\cf1  }data_sample{\cf6 [}{\cf13 'pred_instances'}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }attr_name{\cf1  }{\cf3\b in}{\cf1  }pred_3d:{\cf1 \par
+}{\cf1                 }pred_3d{\cf6 [}attr_name{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }pred_3d{\cf6 [}attr_name{\cf6 ]}.to{\cf6 (}{\cf13 'cpu'}{\cf6 )}{\cf1 \par
+}{\cf1             }result{\cf6 [}{\cf13 'pred_instances_3d'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }pred_3d{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }attr_name{\cf1  }{\cf3\b in}{\cf1  }pred_2d:{\cf1 \par
+}{\cf1                 }pred_2d{\cf6 [}attr_name{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }pred_2d{\cf6 [}attr_name{\cf6 ]}.to{\cf6 (}{\cf13 'cpu'}{\cf6 )}{\cf1 \par
+}{\cf1             }result{\cf6 [}{\cf13 'pred_instances'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }pred_2d{\cf1 \par
+}{\cf1             }{\cf9 sample_idx}{\cf1  }{\cf6 =}{\cf1  }data_sample{\cf6 [}{\cf13 'sample_idx'}{\cf6 ]}{\cf1 \par
+}{\cf1             }result{\cf6 [}{\cf13 'sample_idx'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }sample_idx{\cf1 \par
+}{\cf1             }self.results.append{\cf6 (}result{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }compute_metrics{\cf6 (}self,{\cf1  }results:{\cf1  }List{\cf6 [}dict{\cf6 ]}{\cf6 )}{\cf1  }->{\cf1  }Dict{\cf6 [}str,{\cf1  }float{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Compute the metrics from processed results.}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }results{\cf1  }{\cf6 (}List{\cf6 [}dict{\cf6 ]}{\cf6 )}:{\cf1  }The{\cf1  }processed{\cf1  }results{\cf1  }of{\cf1  }the{\cf1  }whole{\cf1  }dataset.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Returns:{\cf1 \par
+}{\cf1             }Dict{\cf6 [}str,{\cf1  }float{\cf6 ]}:{\cf1  }The{\cf1  }computed{\cf1  }metrics.{\cf1  }The{\cf1  }keys{\cf1  }are{\cf1  }the{\cf1  }names{\cf1  }of{\cf1 \par
+}{\cf1             }the{\cf1  }metrics,{\cf1  }and{\cf1  }the{\cf1  }values{\cf1  }are{\cf1  }corresponding{\cf1  }results.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }logger:{\cf1  }{\cf9 MMLogger}{\cf1  }{\cf6 =}{\cf1  }MMLogger.get_current_instance{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }self.classes{\cf1  }{\cf6 =}{\cf1  }self.dataset_meta{\cf6 [}{\cf13 'classes'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }#{\cf1  }load{\cf1  }annotations{\cf1 \par
+}{\cf1         }{\cf9 pkl_infos}{\cf1  }{\cf6 =}{\cf1  }load{\cf6 (}self.ann_file,{\cf1  }{\cf9 backend_args}{\cf6 =}self.backend_args{\cf6 )}{\cf1 \par
+}{\cf1         }self.data_infos{\cf1  }{\cf6 =}{\cf1  }self.convert_annos_to_kitti_annos{\cf6 (}pkl_infos{\cf6 )}{\cf1 \par
+}{\cf1         }result_dict,{\cf1  }{\cf9 tmp_dir}{\cf1  }{\cf6 =}{\cf1  }self.format_results{\cf6 (}{\cf1 \par
+}{\cf1             }results,{\cf1 \par
+}{\cf1             }{\cf9 pklfile_prefix}{\cf6 =}self.pklfile_prefix,{\cf1 \par
+}{\cf1             }{\cf9 submission_prefix}{\cf6 =}self.submission_prefix,{\cf1 \par
+}{\cf1             }{\cf9 classes}{\cf6 =}self.classes{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 metric_dict}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.format_only:{\cf1 \par
+}{\cf1             }logger.info{\cf6 (}{\cf1 \par
+}{\cf1                 }f{\cf13 'results are saved in \{osp.dirname(self.submission_prefix)\}'}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }metric_dict{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 gt_annos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1             }self.data_infos{\cf6 [}result{\cf6 [}{\cf13 'sample_idx'}{\cf6 ]}{\cf6 ]}{\cf6 [}{\cf13 'kitti_annos'}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }result{\cf1  }{\cf3\b in}{\cf1  }results{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }metric{\cf1  }{\cf3\b in}{\cf1  }self.metrics:{\cf1 \par
+}{\cf1             }ap_dict,{\cf1  }{\cf9 result_df}{\cf1  }{\cf6 =}{\cf1  }self.kitti_evaluate{\cf6 (}{\cf1 \par
+}{\cf1                 }result_dict,{\cf1 \par
+}{\cf1                 }gt_annos,{\cf1 \par
+}{\cf1                 }{\cf9 metric}{\cf6 =}metric,{\cf1 \par
+}{\cf1                 }{\cf9 logger}{\cf6 =}logger,{\cf1 \par
+}{\cf1                 }{\cf9 classes}{\cf6 =}self.classes{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }result{\cf1  }{\cf3\b in}{\cf1  }ap_dict:{\cf1 \par
+}{\cf1                 }metric_dict{\cf6 [}result{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }ap_dict{\cf6 [}result{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }tmp_dir{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1             }tmp_dir.cleanup{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }self.corruption_eval:{\cf1 \par
+}{\cf1             }{\cf9 data_root}{\cf1  }{\cf6 =}{\cf1  }self.ann_file.split{\cf6 (}{\cf13 '/'}{\cf6 )}{\cf6 [}{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }data_root{\cf1  }!{\cf6 =}{\cf1  }{\cf13 'kitti'}:{\cf1 \par
+}{\cf1                 }result_df{\cf6 [}{\cf13 'corruption'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }self.ann_file.split{\cf6 (}{\cf13 '/'}{\cf6 )}{\cf6 [}{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1                 }result_df{\cf6 [}{\cf13 'severity'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }self.ann_file.split{\cf6 (}{\cf13 '/'}{\cf6 )}{\cf6 [}{\cf20 3}{\cf6 ]}.split{\cf6 (}{\cf13 '_'}{\cf6 )}{\cf6 [}-1{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }result_df{\cf6 [}{\cf13 'corruption'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'original'}{\cf1 \par
+}{\cf1                 }result_df{\cf6 [}{\cf13 'severity'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }{\cf13 '0'}{\cf1 \par
+}{\cf1             }{\cf1 \par
+}{\cf1             }{\cf9 file_path}{\cf1  }{\cf6 =}{\cf1  }path.join{\cf6 (}self.corruption_savepath,f{\cf13 '\{self.model_name\}_corruption_eval.csv'}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 ok}{\cf1  }{\cf6 =}{\cf1  }path.isfile{\cf6 (}file_path{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }result_df.to_csv{\cf6 (}{\cf1 \par
+}{\cf1                 }file_path,{\cf1 \par
+}{\cf1                 }{\cf9 mode}{\cf6 =}{\cf13 'a'}{\cf1  }{\cf3\b if}{\cf1  }ok{\cf1  }{\cf3\b else}{\cf1  }{\cf13 'w'},{\cf1 \par
+}{\cf1                 }{\cf9 header}{\cf6 =}not{\cf1  }ok,{\cf1 \par
+}{\cf1                 }{\cf9 index}{\cf6 =}False{\cf1 \par
+}{\cf1             }{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }metric_dict{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }kitti_evaluate{\cf6 (}self,{\cf1 \par
+}{\cf1                        }results_dict:{\cf1  }dict,{\cf1 \par
+}{\cf1                        }gt_annos:{\cf1  }List{\cf6 [}dict{\cf6 ]},{\cf1 \par
+}{\cf1                        }metric:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1                        }classes:{\cf1  }Optional{\cf6 [}List{\cf6 [}str{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1                        }logger:{\cf1  }Optional{\cf6 [}MMLogger{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None{\cf6 )}{\cf1  }->{\cf1  }Dict{\cf6 [}str,{\cf1  }float{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Evaluation in KITTI protocol.}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }results_dict{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }Formatted{\cf1  }results{\cf1  }of{\cf1  }the{\cf1  }dataset.{\cf1 \par
+}{\cf1             }gt_annos{\cf1  }{\cf6 (}List{\cf6 [}dict{\cf6 ]}{\cf6 )}:{\cf1  }Contain{\cf1  }gt{\cf1  }information{\cf1  }of{\cf1  }each{\cf1  }sample.{\cf1 \par
+}{\cf1             }metric{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }Metrics{\cf1  }to{\cf1  }be{\cf1  }evaluated.{\cf1  }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1             }classes{\cf1  }{\cf6 (}List{\cf6 [}str{\cf6 ]},{\cf1  }optional{\cf6 )}:{\cf1  }A{\cf1  }list{\cf1  }of{\cf1  }class{\cf1  }name.{\cf1 \par
+}{\cf1                 }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1             }logger{\cf1  }{\cf6 (}MMLogger,{\cf1  }optional{\cf6 )}:{\cf1  }Logger{\cf1  }used{\cf1  }{\cf3\b for}{\cf1  }printing{\cf1  }related{\cf1 \par
+}{\cf1                 }information{\cf1  }during{\cf1  }evaluation.{\cf1  }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Returns:{\cf1 \par
+}{\cf1             }Dict{\cf6 [}str,{\cf1  }float{\cf6 ]}:{\cf1  }Results{\cf1  }of{\cf1  }each{\cf1  }evaluation{\cf1  }metric.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf9 ap_dict}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }name{\cf1  }{\cf3\b in}{\cf1  }results_dict:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf9 name}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'pred_instances'}{\cf1  }or{\cf1  }{\cf9 metric}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'img_bbox'}:{\cf1 \par
+}{\cf1                 }{\cf9 eval_types}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 eval_types}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'bbox'},{\cf1  }{\cf13 'bev'},{\cf1  }{\cf13 '3d'}{\cf6 ]}{\cf1 \par
+}{\cf1             }ap_result_str,{\cf1  }ap_dict_,{\cf1  }{\cf9 df}{\cf1  }{\cf6 =}{\cf1  }kitti_eval{\cf6 (}{\cf1 \par
+}{\cf1                 }gt_annos,{\cf1  }results_dict{\cf6 [}name{\cf6 ]},{\cf1  }classes,{\cf1  }{\cf9 eval_types}{\cf6 =}eval_types{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }ap_type,{\cf1  }ap{\cf1  }{\cf3\b in}{\cf1  }ap_dict_.items{\cf6 (}{\cf6 )}:{\cf1 \par
+}{\cf1                 }ap_dict{\cf6 [}f{\cf13 '\{name\}/\{ap_type\}'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }float{\cf6 (}f{\cf13 '\{ap:.4f\}'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }print_log{\cf6 (}f{\cf13 'Results of \{name\}:\\n'}{\cf1  }+{\cf1  }ap_result_str,{\cf1  }{\cf9 logger}{\cf6 =}logger{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }ap_dict,{\cf1  }df{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }format_results{\cf6 (}{\cf1 \par
+}{\cf1         }self,{\cf1 \par
+}{\cf1         }results:{\cf1  }List{\cf6 [}dict{\cf6 ]},{\cf1 \par
+}{\cf1         }pklfile_prefix:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1         }submission_prefix:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1         }classes:{\cf1  }Optional{\cf6 [}List{\cf6 [}str{\cf6 ]}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1     }{\cf6 )}{\cf1  }->{\cf1  }Tuple{\cf6 [}dict,{\cf1  }Union{\cf6 [}tempfile.TemporaryDirectory,{\cf1  }None{\cf6 ]}{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Format the results to pkl file.}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }results{\cf1  }{\cf6 (}List{\cf6 [}dict{\cf6 ]}{\cf6 )}:{\cf1  }Testing{\cf1  }results{\cf1  }of{\cf1  }the{\cf1  }dataset.{\cf1 \par
+}{\cf1             }pklfile_prefix{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }The{\cf1  }prefix{\cf1  }of{\cf1  }pkl{\cf1  }files.{\cf1  }It{\cf1 \par
+}{\cf1                 }includes{\cf1  }the{\cf1  }file{\cf1  }path{\cf1  }and{\cf1  }the{\cf1  }prefix{\cf1  }of{\cf1  }filename,{\cf1  }e.g.,{\cf1 \par
+}{\cf1                 }{\cf13 "a/b/prefix"}.{\cf1  }If{\cf1  }not{\cf1  }specified,{\cf1  }a{\cf1  }temp{\cf1  }file{\cf1  }will{\cf1  }be{\cf1  }created.{\cf1 \par
+}{\cf1                 }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1             }submission_prefix{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }The{\cf1  }prefix{\cf1  }of{\cf1  }submitted{\cf1  }files.{\cf1 \par
+}{\cf1                 }It{\cf1  }includes{\cf1  }the{\cf1  }file{\cf1  }path{\cf1  }and{\cf1  }the{\cf1  }prefix{\cf1  }of{\cf1  }filename,{\cf1  }e.g.,{\cf1 \par
+}{\cf1                 }{\cf13 "a/b/prefix"}.{\cf1  }If{\cf1  }not{\cf1  }specified,{\cf1  }a{\cf1  }temp{\cf1  }file{\cf1  }will{\cf1  }be{\cf1  }created.{\cf1 \par
+}{\cf1                 }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1             }classes{\cf1  }{\cf6 (}List{\cf6 [}str{\cf6 ]},{\cf1  }optional{\cf6 )}:{\cf1  }A{\cf1  }list{\cf1  }of{\cf1  }class{\cf1  }name.{\cf1 \par
+}{\cf1                 }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Returns:{\cf1 \par
+}{\cf1             }tuple:{\cf1  }{\cf6 (}result_dict,{\cf1  }tmp_dir{\cf6 )},{\cf1  }result_dict{\cf1  }is{\cf1  }a{\cf1  }dict{\cf1  }containing{\cf1  }the{\cf1 \par
+}{\cf1             }formatted{\cf1  }result,{\cf1  }tmp_dir{\cf1  }is{\cf1  }the{\cf1  }temporal{\cf1  }directory{\cf1  }created{\cf1  }{\cf3\b for}{\cf1 \par
+}{\cf1             }saving{\cf1  }json{\cf1  }files{\cf1  }when{\cf1  }jsonfile_prefix{\cf1  }is{\cf1  }not{\cf1  }specified.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }pklfile_prefix{\cf1  }is{\cf1  }None:{\cf1 \par
+}{\cf1             }{\cf9 tmp_dir}{\cf1  }{\cf6 =}{\cf1  }tempfile.TemporaryDirectory{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 pklfile_prefix}{\cf1  }{\cf6 =}{\cf1  }osp.join{\cf6 (}tmp_dir.name,{\cf1  }{\cf13 'results'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 tmp_dir}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1         }{\cf9 result_dict}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 sample_idx_list}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}result{\cf6 [}{\cf13 'sample_idx'}{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }result{\cf1  }{\cf3\b in}{\cf1  }results{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }name{\cf1  }{\cf3\b in}{\cf1  }results{\cf6 [}{\cf20 0}{\cf6 ]}:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }submission_prefix{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1                 }{\cf9 submission_prefix_}{\cf1  }{\cf6 =}{\cf1  }osp.join{\cf6 (}submission_prefix,{\cf1  }name{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 submission_prefix_}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }pklfile_prefix{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1                 }{\cf9 pklfile_prefix_}{\cf1  }{\cf6 =}{\cf1  }osp.join{\cf6 (}pklfile_prefix,{\cf1  }name{\cf6 )}{\cf1  }+{\cf1  }{\cf13 '.pkl'}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 pklfile_prefix_}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf13 'pred_instances'}{\cf1  }{\cf3\b in}{\cf1  }name{\cf1  }and{\cf1  }{\cf13 '3d'}{\cf1  }{\cf3\b in}{\cf1  }name{\cf1  }and{\cf1  }name{\cf6 [}{\cf1 \par
+}{\cf1                     }{\cf20 0}{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf13 '_'}{\cf1  }and{\cf1  }results{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 [}name{\cf6 ]}:{\cf1 \par
+}{\cf1                 }{\cf9 net_outputs}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}result{\cf6 [}name{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }result{\cf1  }{\cf3\b in}{\cf1  }results{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 result_list_}{\cf1  }{\cf6 =}{\cf1  }self.bbox2result_kitti{\cf6 (}net_outputs,{\cf1 \par
+}{\cf1                                                       }sample_idx_list,{\cf1  }classes,{\cf1 \par
+}{\cf1                                                       }pklfile_prefix_,{\cf1 \par
+}{\cf1                                                       }submission_prefix_{\cf6 )}{\cf1 \par
+}{\cf1                 }result_dict{\cf6 [}name{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }result_list_{\cf1 \par
+}{\cf1             }{\cf3\b elif}{\cf1  }{\cf9 name}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf13 'pred_instances'}{\cf1  }and{\cf1  }name{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1  }!{\cf6 =}{\cf1  }{\cf13 '_'}{\cf1  }and{\cf1  }results{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 [}{\cf1 \par
+}{\cf1                     }name{\cf6 ]}:{\cf1 \par
+}{\cf1                 }{\cf9 net_outputs}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}result{\cf6 [}name{\cf6 ]}{\cf1  }{\cf3\b for}{\cf1  }result{\cf1  }{\cf3\b in}{\cf1  }results{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 result_list_}{\cf1  }{\cf6 =}{\cf1  }self.bbox2result_kitti2d{\cf6 (}{\cf1 \par
+}{\cf1                     }net_outputs,{\cf1  }sample_idx_list,{\cf1  }classes,{\cf1  }pklfile_prefix_,{\cf1 \par
+}{\cf1                     }submission_prefix_{\cf6 )}{\cf1 \par
+}{\cf1                 }result_dict{\cf6 [}name{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }result_list_{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }result_dict,{\cf1  }tmp_dir{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }bbox2result_kitti{\cf6 (}{\cf1 \par
+}{\cf1             }self,{\cf1 \par
+}{\cf1             }net_outputs:{\cf1  }List{\cf6 [}dict{\cf6 ]},{\cf1 \par
+}{\cf1             }sample_idx_list:{\cf1  }List{\cf6 [}int{\cf6 ]},{\cf1 \par
+}{\cf1             }class_names:{\cf1  }List{\cf6 [}str{\cf6 ]},{\cf1 \par
+}{\cf1             }pklfile_prefix:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1             }submission_prefix:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None{\cf6 )}{\cf1  }->{\cf1  }List{\cf6 [}dict{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Convert 3D detection results to kitti format for evaluation and test}{\cf1 \par
+}{\cf1         }submission.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }net_outputs{\cf1  }{\cf6 (}List{\cf6 [}dict{\cf6 ]}{\cf6 )}:{\cf1  }List{\cf1  }of{\cf1  }dict{\cf1  }storing{\cf1  }the{\cf1  }inferenced{\cf1 \par
+}{\cf1                 }bounding{\cf1  }boxes{\cf1  }and{\cf1  }scores.{\cf1 \par
+}{\cf1             }sample_idx_list{\cf1  }{\cf6 (}List{\cf6 [}int{\cf6 ]}{\cf6 )}:{\cf1  }List{\cf1  }of{\cf1  }input{\cf1  }sample{\cf1  }idx.{\cf1 \par
+}{\cf1             }class_names{\cf1  }{\cf6 (}List{\cf6 [}str{\cf6 ]}{\cf6 )}:{\cf1  }A{\cf1  }list{\cf1  }of{\cf1  }class{\cf1  }names.{\cf1 \par
+}{\cf1             }pklfile_prefix{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }The{\cf1  }prefix{\cf1  }of{\cf1  }pkl{\cf1  }file.{\cf1 \par
+}{\cf1                 }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1             }submission_prefix{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }The{\cf1  }prefix{\cf1  }of{\cf1  }submission{\cf1  }file.{\cf1 \par
+}{\cf1                 }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Returns:{\cf1 \par
+}{\cf1             }List{\cf6 [}dict{\cf6 ]}:{\cf1  }A{\cf1  }list{\cf1  }of{\cf1  }dictionaries{\cf1  }with{\cf1  }the{\cf1  }kitti{\cf1  }format.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }assert{\cf1  }len{\cf6 (}net_outputs{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }len{\cf6 (}self.data_infos{\cf6 )},{\cf1  }{\cf13\b \\\par
+}{\cf1             }{\cf13 'invalid list length of network outputs'}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }submission_prefix{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1             }mmengine.mkdir_or_exist{\cf6 (}submission_prefix{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 det_annos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1         }print{\cf6 (}{\cf13 '\\nConverting 3D prediction to KITTI format'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }idx,{\cf1  }pred_dicts{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}{\cf1 \par
+}{\cf1                 }mmengine.track_iter_progress{\cf6 (}net_outputs{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 sample_idx}{\cf1  }{\cf6 =}{\cf1  }sample_idx_list{\cf6 [}idx{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf9 info}{\cf1  }{\cf6 =}{\cf1  }self.data_infos{\cf6 [}sample_idx{\cf6 ]}{\cf1 \par
+}{\cf1             }#{\cf1  }Here{\cf1  }default{\cf1  }used{\cf1  }{\cf13 'CAM2'}{\cf1  }to{\cf1  }compute{\cf1  }metric.{\cf1  }If{\cf1  }you{\cf1  }want{\cf1  }to{\cf1 \par
+}{\cf1             }#{\cf1  }use{\cf1  }another{\cf1  }camera,{\cf1  }please{\cf1  }modify{\cf1  }it.{\cf1 \par
+}{\cf1             }{\cf9 image_shape}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}info{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}self.default_cam_key{\cf6 ]}{\cf6 [}{\cf13 'height'}{\cf6 ]},{\cf1 \par
+}{\cf1                            }info{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}self.default_cam_key{\cf6 ]}{\cf6 [}{\cf13 'width'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 box_dict}{\cf1  }{\cf6 =}{\cf1  }self.convert_valid_bboxes{\cf6 (}pred_dicts,{\cf1  }info{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 anno}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                 }{\cf13 'name'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'truncated'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'occluded'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'alpha'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'bbox'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'dimensions'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'location'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'rotation_y'}:{\cf1  }{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf13 'score'}:{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf6 \}}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }len{\cf6 (}box_dict{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf6 )}{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf9 box_2d_preds}{\cf1  }{\cf6 =}{\cf1  }box_dict{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 box_preds}{\cf1  }{\cf6 =}{\cf1  }box_dict{\cf6 [}{\cf13 'box3d_camera'}{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 scores}{\cf1  }{\cf6 =}{\cf1  }box_dict{\cf6 [}{\cf13 'scores'}{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 box_preds_lidar}{\cf1  }{\cf6 =}{\cf1  }box_dict{\cf6 [}{\cf13 'box3d_lidar'}{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 label_preds}{\cf1  }{\cf6 =}{\cf1  }box_dict{\cf6 [}{\cf13 'label_preds'}{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 pred_box_type_3d}{\cf1  }{\cf6 =}{\cf1  }box_dict{\cf6 [}{\cf13 'pred_box_type_3d'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }{\cf3\b for}{\cf1  }box,{\cf1  }box_lidar,{\cf1  }bbox,{\cf1  }score,{\cf1  }label{\cf1  }{\cf3\b in}{\cf1  }zip{\cf6 (}{\cf1 \par
+}{\cf1                         }box_preds,{\cf1  }box_preds_lidar,{\cf1  }box_2d_preds,{\cf1  }scores,{\cf1 \par
+}{\cf1                         }label_preds{\cf6 )}:{\cf1 \par
+}{\cf1                     }bbox{\cf6 [}{\cf20 2}:{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.minimum{\cf6 (}bbox{\cf6 [}{\cf20 2}:{\cf6 ]},{\cf1  }image_shape{\cf6 [}::-1{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }bbox{\cf6 [}:2{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.maximum{\cf6 (}bbox{\cf6 [}:2{\cf6 ]},{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }anno{\cf6 [}{\cf13 'name'}{\cf6 ]}.append{\cf6 (}class_names{\cf6 [}int{\cf6 (}label{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }anno{\cf6 [}{\cf13 'truncated'}{\cf6 ]}.append{\cf6 (}{\cf20 0}.0{\cf6 )}{\cf1 \par
+}{\cf1                     }anno{\cf6 [}{\cf13 'occluded'}{\cf6 ]}.append{\cf6 (}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b if}{\cf1  }{\cf9 pred_box_type_3d}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }CameraInstance3DBoxes:{\cf1 \par
+}{\cf1                         }anno{\cf6 [}{\cf13 'alpha'}{\cf6 ]}.append{\cf6 (}-np.arctan2{\cf6 (}box{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }box{\cf6 [}{\cf20 2}{\cf6 ]}{\cf6 )}{\cf1  }+{\cf1 \par
+}{\cf1                                              }box{\cf6 [}{\cf20 6}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }{\cf3\b elif}{\cf1  }{\cf9 pred_box_type_3d}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }LiDARInstance3DBoxes:{\cf1 \par
+}{\cf1                         }anno{\cf6 [}{\cf13 'alpha'}{\cf6 ]}.append{\cf6 (}{\cf1 \par
+}{\cf1                             }-np.arctan2{\cf6 (}-box_lidar{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1  }box_lidar{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1  }+{\cf1  }box{\cf6 [}{\cf20 6}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }anno{\cf6 [}{\cf13 'bbox'}{\cf6 ]}.append{\cf6 (}bbox{\cf6 )}{\cf1 \par
+}{\cf1                     }anno{\cf6 [}{\cf13 'dimensions'}{\cf6 ]}.append{\cf6 (}box{\cf6 [}{\cf20 3}:6{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }anno{\cf6 [}{\cf13 'location'}{\cf6 ]}.append{\cf6 (}box{\cf6 [}:3{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }anno{\cf6 [}{\cf13 'rotation_y'}{\cf6 ]}.append{\cf6 (}box{\cf6 [}{\cf20 6}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                     }anno{\cf6 [}{\cf13 'score'}{\cf6 ]}.append{\cf6 (}score{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }{\cf9 anno}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}k:{\cf1  }np.stack{\cf6 (}v{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }k,{\cf1  }v{\cf1  }{\cf3\b in}{\cf1  }anno.items{\cf6 (}{\cf6 )}{\cf6 \}}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 anno}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}{\cf1 \par
+}{\cf1                     }{\cf13 'name'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf13 'truncated'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf13 'occluded'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf13 'alpha'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf13 'bbox'}:{\cf1  }np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf13 'dimensions'}:{\cf1  }np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 3}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf13 'location'}:{\cf1  }np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 3}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf13 'rotation_y'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf13 'score'}:{\cf1  }np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }submission_prefix{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1                 }{\cf9 curr_file}{\cf1  }{\cf6 =}{\cf1  }f{\cf13 '\{submission_prefix\}/\{sample_idx:06d\}.txt'}{\cf1 \par
+}{\cf1                 }with{\cf1  }open{\cf6 (}curr_file,{\cf1  }{\cf13 'w'}{\cf6 )}{\cf1  }as{\cf1  }f:{\cf1 \par
+}{\cf1                     }{\cf9 bbox}{\cf1  }{\cf6 =}{\cf1  }anno{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf9 loc}{\cf1  }{\cf6 =}{\cf1  }anno{\cf6 [}{\cf13 'location'}{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf9 dims}{\cf1  }{\cf6 =}{\cf1  }anno{\cf6 [}{\cf13 'dimensions'}{\cf6 ]}{\cf1   }#{\cf1  }lhw{\cf1  }->{\cf1  }hwl{\cf1 \par
+}{\cf1 \par
+}{\cf1                     }{\cf3\b for}{\cf1  }idx{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}bbox{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                         }print{\cf6 (}{\cf1 \par
+}{\cf1                             }{\cf13 '\{\} -1 -1 \{:.4f\} \{:.4f\} \{:.4f\} \{:.4f\} '}{\cf1 \par
+}{\cf1                             }{\cf13 '\{:.4f\} \{:.4f\} \{:.4f\} '}{\cf1 \par
+}{\cf1                             }{\cf13 '\{:.4f\} \{:.4f\} \{:.4f\} \{:.4f\} \{:.4f\} \{:.4f\}'}.format{\cf6 (}{\cf1 \par
+}{\cf1                                 }anno{\cf6 [}{\cf13 'name'}{\cf6 ]}{\cf6 [}idx{\cf6 ]},{\cf1  }anno{\cf6 [}{\cf13 'alpha'}{\cf6 ]}{\cf6 [}idx{\cf6 ]},{\cf1 \par
+}{\cf1                                 }bbox{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }bbox{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1  }bbox{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 2}{\cf6 ]},{\cf1 \par
+}{\cf1                                 }bbox{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 3}{\cf6 ]},{\cf1  }dims{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1  }dims{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 2}{\cf6 ]},{\cf1 \par
+}{\cf1                                 }dims{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }loc{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 0}{\cf6 ]},{\cf1  }loc{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 1}{\cf6 ]},{\cf1 \par
+}{\cf1                                 }loc{\cf6 [}idx{\cf6 ]}{\cf6 [}{\cf20 2}{\cf6 ]},{\cf1  }anno{\cf6 [}{\cf13 'rotation_y'}{\cf6 ]}{\cf6 [}idx{\cf6 ]},{\cf1 \par
+}{\cf1                                 }anno{\cf6 [}{\cf13 'score'}{\cf6 ]}{\cf6 [}idx{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                             }{\cf9 file}{\cf6 =}f{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }anno{\cf6 [}{\cf13 'sample_idx'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}sample_idx{\cf6 ]}{\cf1  }*{\cf1  }len{\cf6 (}anno{\cf6 [}{\cf13 'score'}{\cf6 ]}{\cf6 )},{\cf1  }{\cf9 dtype}{\cf6 =}np.int64{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }det_annos.append{\cf6 (}anno{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }pklfile_prefix{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }not{\cf1  }pklfile_prefix.endswith{\cf6 (}{\cf6 (}{\cf13 '.pkl'},{\cf1  }{\cf13 '.pickle'}{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 out}{\cf1  }{\cf6 =}{\cf1  }f{\cf13 '\{pklfile_prefix\}.pkl'}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 out}{\cf1  }{\cf6 =}{\cf1  }pklfile_prefix{\cf1 \par
+}{\cf1             }mmengine.dump{\cf6 (}det_annos,{\cf1  }out{\cf6 )}{\cf1 \par
+}{\cf1             }print{\cf6 (}f{\cf13 'Result is saved to \{out\}.'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }det_annos{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }bbox2result_kitti2d{\cf6 (}{\cf1 \par
+}{\cf1             }self,{\cf1 \par
+}{\cf1             }net_outputs:{\cf1  }List{\cf6 [}dict{\cf6 ]},{\cf1 \par
+}{\cf1             }sample_idx_list:{\cf1  }List{\cf6 [}int{\cf6 ]},{\cf1 \par
+}{\cf1             }class_names:{\cf1  }List{\cf6 [}str{\cf6 ]},{\cf1 \par
+}{\cf1             }pklfile_prefix:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None,{\cf1 \par
+}{\cf1             }submission_prefix:{\cf1  }Optional{\cf6 [}str{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }None{\cf6 )}{\cf1  }->{\cf1  }List{\cf6 [}dict{\cf6 ]}:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Convert 2D detection results to kitti format for evaluation and test}{\cf1 \par
+}{\cf1         }submission.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }net_outputs{\cf1  }{\cf6 (}List{\cf6 [}dict{\cf6 ]}{\cf6 )}:{\cf1  }List{\cf1  }of{\cf1  }dict{\cf1  }storing{\cf1  }the{\cf1  }inferenced{\cf1 \par
+}{\cf1                 }bounding{\cf1  }boxes{\cf1  }and{\cf1  }scores.{\cf1 \par
+}{\cf1             }sample_idx_list{\cf1  }{\cf6 (}List{\cf6 [}int{\cf6 ]}{\cf6 )}:{\cf1  }List{\cf1  }of{\cf1  }input{\cf1  }sample{\cf1  }idx.{\cf1 \par
+}{\cf1             }class_names{\cf1  }{\cf6 (}List{\cf6 [}str{\cf6 ]}{\cf6 )}:{\cf1  }A{\cf1  }list{\cf1  }of{\cf1  }class{\cf1  }names.{\cf1 \par
+}{\cf1             }pklfile_prefix{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }The{\cf1  }prefix{\cf1  }of{\cf1  }pkl{\cf1  }file.{\cf1 \par
+}{\cf1                 }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1             }submission_prefix{\cf1  }{\cf6 (}str,{\cf1  }optional{\cf6 )}:{\cf1  }The{\cf1  }prefix{\cf1  }of{\cf1  }submission{\cf1  }file.{\cf1 \par
+}{\cf1                 }Defaults{\cf1  }to{\cf1  }None.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Returns:{\cf1 \par
+}{\cf1             }List{\cf6 [}dict{\cf6 ]}:{\cf1  }A{\cf1  }list{\cf1  }of{\cf1  }dictionaries{\cf1  }with{\cf1  }the{\cf1  }kitti{\cf1  }format.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }assert{\cf1  }len{\cf6 (}net_outputs{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }len{\cf6 (}self.data_infos{\cf6 )},{\cf1  }{\cf13\b \\\par
+}{\cf1             }{\cf13 'invalid list length of network outputs'}{\cf1 \par
+}{\cf1         }{\cf9 det_annos}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf6 ]}{\cf1 \par
+}{\cf1         }print{\cf6 (}{\cf13 '\\nConverting 2D prediction to KITTI format'}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b for}{\cf1  }i,{\cf1  }bboxes_per_sample{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}{\cf1 \par
+}{\cf1                 }mmengine.track_iter_progress{\cf6 (}net_outputs{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 anno}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 name}{\cf6 =}{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf9 truncated}{\cf6 =}{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf9 occluded}{\cf6 =}{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf9 alpha}{\cf6 =}{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf9 bbox}{\cf6 =}{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf9 dimensions}{\cf6 =}{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf9 location}{\cf6 =}{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf9 rotation_y}{\cf6 =}{\cf6 [}{\cf6 ]},{\cf1 \par
+}{\cf1                 }{\cf9 score}{\cf6 =}{\cf6 [}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 sample_idx}{\cf1  }{\cf6 =}{\cf1  }sample_idx_list{\cf6 [}i{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf9 num_example}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}{\cf1 \par
+}{\cf1             }{\cf9 bbox}{\cf1  }{\cf6 =}{\cf1  }bboxes_per_sample{\cf6 [}{\cf13 'bboxes'}{\cf6 ]}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }i{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}bbox.shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}:{\cf1 \par
+}{\cf1                 }anno{\cf6 [}{\cf13 'name'}{\cf6 ]}.append{\cf6 (}class_names{\cf6 [}int{\cf6 (}{\cf1 \par
+}{\cf1                     }bboxes_per_sample{\cf6 [}{\cf13 'labels'}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf6 )}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }anno{\cf6 [}{\cf13 'truncated'}{\cf6 ]}.append{\cf6 (}{\cf20 0}.0{\cf6 )}{\cf1 \par
+}{\cf1                 }anno{\cf6 [}{\cf13 'occluded'}{\cf6 ]}.append{\cf6 (}{\cf20 0}{\cf6 )}{\cf1 \par
+}{\cf1                 }anno{\cf6 [}{\cf13 'alpha'}{\cf6 ]}.append{\cf6 (}{\cf20 0}.0{\cf6 )}{\cf1 \par
+}{\cf1                 }anno{\cf6 [}{\cf13 'bbox'}{\cf6 ]}.append{\cf6 (}bbox{\cf6 [}i,{\cf1  }:4{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }#{\cf1  }{\cf3 set}{\cf1  }dimensions{\cf1  }{\cf6 (}height,{\cf1  }width,{\cf1  }length{\cf6 )}{\cf1  }to{\cf1  }zero{\cf1 \par
+}{\cf1                 }anno{\cf6 [}{\cf13 'dimensions'}{\cf6 ]}.append{\cf6 (}{\cf1 \par
+}{\cf1                     }np.zeros{\cf6 (}{\cf9 shape}{\cf6 =}{\cf6 [}{\cf20 3}{\cf6 ]},{\cf1  }{\cf9 dtype}{\cf6 =}np.float32{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }#{\cf1  }{\cf3 set}{\cf1  }the{\cf1  }3D{\cf1  }translation{\cf1  }to{\cf1  }{\cf6 (}-1000,{\cf1  }-1000,{\cf1  }-1000{\cf6 )}{\cf1 \par
+}{\cf1                 }anno{\cf6 [}{\cf13 'location'}{\cf6 ]}.append{\cf6 (}{\cf1 \par
+}{\cf1                     }np.ones{\cf6 (}{\cf9 shape}{\cf6 =}{\cf6 [}{\cf20 3}{\cf6 ]},{\cf1  }{\cf9 dtype}{\cf6 =}np.float32{\cf6 )}{\cf1  }*{\cf1  }{\cf6 (}-1000.0{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1                 }anno{\cf6 [}{\cf13 'rotation_y'}{\cf6 ]}.append{\cf6 (}{\cf20 0}.0{\cf6 )}{\cf1 \par
+}{\cf1                 }anno{\cf6 [}{\cf13 'score'}{\cf6 ]}.append{\cf6 (}bboxes_per_sample{\cf6 [}{\cf13 'scores'}{\cf6 ]}{\cf6 [}i{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1                 }{\cf9 num_example}{\cf1  }{\cf6 +=}{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }{\cf9 num_example}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1                 }{\cf9 anno}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1                     }{\cf9 name}{\cf6 =}np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf9 truncated}{\cf6 =}np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf9 occluded}{\cf6 =}np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf9 alpha}{\cf6 =}np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf9 bbox}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf9 dimensions}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 3}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf9 location}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 3}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf9 rotation_y}{\cf6 =}np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                     }{\cf9 score}{\cf6 =}np.array{\cf6 (}{\cf6 [}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 anno}{\cf1  }{\cf6 =}{\cf1  }{\cf6 \{}k:{\cf1  }np.stack{\cf6 (}v{\cf6 )}{\cf1  }{\cf3\b for}{\cf1  }k,{\cf1  }v{\cf1  }{\cf3\b in}{\cf1  }anno.items{\cf6 (}{\cf6 )}{\cf6 \}}{\cf1 \par
+}{\cf1 \par
+}{\cf1             }anno{\cf6 [}{\cf13 'sample_idx'}{\cf6 ]}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf6 [}sample_idx{\cf6 ]}{\cf1  }*{\cf1  }num_example,{\cf1  }{\cf9 dtype}{\cf6 =}np.int64{\cf6 )}{\cf1 \par
+}{\cf1             }det_annos.append{\cf6 (}anno{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }pklfile_prefix{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1             }{\cf3\b if}{\cf1  }not{\cf1  }pklfile_prefix.endswith{\cf6 (}{\cf6 (}{\cf13 '.pkl'},{\cf1  }{\cf13 '.pickle'}{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 out}{\cf1  }{\cf6 =}{\cf1  }f{\cf13 '\{pklfile_prefix\}.pkl'}{\cf1 \par
+}{\cf1             }{\cf3\b else}:{\cf1 \par
+}{\cf1                 }{\cf9 out}{\cf1  }{\cf6 =}{\cf1  }pklfile_prefix{\cf1 \par
+}{\cf1             }mmengine.dump{\cf6 (}det_annos,{\cf1  }out{\cf6 )}{\cf1 \par
+}{\cf1             }print{\cf6 (}f{\cf13 'Result is saved to \{out\}.'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }submission_prefix{\cf1  }is{\cf1  }not{\cf1  }None:{\cf1 \par
+}{\cf1             }#{\cf1  }save{\cf1  }file{\cf1  }{\cf3\b in}{\cf1  }submission{\cf1  }format{\cf1 \par
+}{\cf1             }mmengine.mkdir_or_exist{\cf6 (}submission_prefix{\cf6 )}{\cf1 \par
+}{\cf1             }print{\cf6 (}f{\cf13 'Saving KITTI submission to \{submission_prefix\}'}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf3\b for}{\cf1  }i,{\cf1  }anno{\cf1  }{\cf3\b in}{\cf1  }enumerate{\cf6 (}det_annos{\cf6 )}:{\cf1 \par
+}{\cf1                 }{\cf9 sample_idx}{\cf1  }{\cf6 =}{\cf1  }sample_idx_list{\cf6 [}i{\cf6 ]}{\cf1 \par
+}{\cf1                 }{\cf9 cur_det_file}{\cf1  }{\cf6 =}{\cf1  }f{\cf13 '\{submission_prefix\}/\{sample_idx:06d\}.txt'}{\cf1 \par
+}{\cf1                 }with{\cf1  }open{\cf6 (}cur_det_file,{\cf1  }{\cf13 'w'}{\cf6 )}{\cf1  }as{\cf1  }f:{\cf1 \par
+}{\cf1                     }{\cf9 bbox}{\cf1  }{\cf6 =}{\cf1  }anno{\cf6 [}{\cf13 'bbox'}{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf9 loc}{\cf1  }{\cf6 =}{\cf1  }anno{\cf6 [}{\cf13 'location'}{\cf6 ]}{\cf1 \par
+}{\cf1                     }{\cf9 dims}{\cf1  }{\cf6 =}{\cf1  }anno{\cf6 [}{\cf13 'dimensions'}{\cf6 ]}{\cf6 [}::-1{\cf6 ]}{\cf1   }#{\cf1  }lhw{\cf1  }->{\cf1  }hwl{\cf1 \par
+}{\cf1                     }{\cf3\b for}{\cf1  }idx{\cf1  }{\cf3\b in}{\cf1  }range{\cf6 (}len{\cf6 (}bbox{\cf6 )}{\cf6 )}:{\cf1 \par
+}{\cf1                         }print{\cf6 (}{\cf1 \par
+}{\cf1                             }{\cf13 '\{\} -1 -1 \{:4f\} \{:4f\} \{:4f\} \{:4f\} \{:4f\} \{:4f\} '}{\cf1 \par
+}{\cf1                             }{\cf13 '\{:4f\} \{:4f\} \{:4f\} \{:4f\} \{:4f\} \{:4f\} \{:4f\}'}.format{\cf6 (}{\cf1 \par
+}{\cf1                                 }anno{\cf6 [}{\cf13 'name'}{\cf6 ]}{\cf6 [}idx{\cf6 ]},{\cf1 \par
+}{\cf1                                 }anno{\cf6 [}{\cf13 'alpha'}{\cf6 ]}{\cf6 [}idx{\cf6 ]},{\cf1 \par
+}{\cf1                                 }*bbox{\cf6 [}idx{\cf6 ]},{\cf1   }#{\cf1  }{\cf20 4}{\cf1  }float{\cf1 \par
+}{\cf1                                 }*dims{\cf6 [}idx{\cf6 ]},{\cf1   }#{\cf1  }{\cf20 3}{\cf1  }float{\cf1 \par
+}{\cf1                                 }*loc{\cf6 [}idx{\cf6 ]},{\cf1   }#{\cf1  }{\cf20 3}{\cf1  }float{\cf1 \par
+}{\cf1                                 }anno{\cf6 [}{\cf13 'rotation_y'}{\cf6 ]}{\cf6 [}idx{\cf6 ]},{\cf1 \par
+}{\cf1                                 }anno{\cf6 [}{\cf13 'score'}{\cf6 ]}{\cf6 [}idx{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                             }{\cf9 file}{\cf6 =}f,{\cf1 \par
+}{\cf1                         }{\cf6 )}{\cf1 \par
+}{\cf1             }print{\cf6 (}f{\cf13 'Result is saved to \{submission_prefix\}'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b return}{\cf1  }det_annos{\cf1 \par
+}{\cf1 \par
+}{\cf1     }def{\cf1  }convert_valid_bboxes{\cf6 (}self,{\cf1  }box_dict:{\cf1  }dict,{\cf1  }info:{\cf1  }dict{\cf6 )}{\cf1  }->{\cf1  }dict:{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf13 Convert the predicted boxes into valid ones.}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Args:{\cf1 \par
+}{\cf1             }box_dict{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }Box{\cf1  }dictionaries{\cf1  }to{\cf1  }be{\cf1  }converted.{\cf1 \par
+}{\cf1 \par
+}{\cf1                 }-{\cf1  }bboxes_3d{\cf1  }{\cf6 (}:obj:{\cf13 `}BaseInstance3DBoxes{\cf13 `}{\cf6 )}:{\cf1  }3D{\cf1  }bounding{\cf1  }boxes.{\cf1 \par
+}{\cf1                 }-{\cf1  }scores_3d{\cf1  }{\cf6 (}Tensor{\cf6 )}:{\cf1  }Scores{\cf1  }of{\cf1  }boxes.{\cf1 \par
+}{\cf1                 }-{\cf1  }labels_3d{\cf1  }{\cf6 (}Tensor{\cf6 )}:{\cf1  }Class{\cf1  }labels{\cf1  }of{\cf1  }boxes.{\cf1 \par
+}{\cf1             }info{\cf1  }{\cf6 (}dict{\cf6 )}:{\cf1  }Data{\cf1  }info.{\cf1 \par
+}{\cf1 \par
+}{\cf1         }Returns:{\cf1 \par
+}{\cf1             }dict:{\cf1  }Valid{\cf1  }predicted{\cf1  }boxes.{\cf1 \par
+}{\cf1 \par
+}{\cf1             }-{\cf1  }bbox{\cf1  }{\cf6 (}np.ndarray{\cf6 )}:{\cf1  }2D{\cf1  }bounding{\cf1  }boxes.{\cf1 \par
+}{\cf1             }-{\cf1  }box3d_camera{\cf1  }{\cf6 (}np.ndarray{\cf6 )}:{\cf1  }3D{\cf1  }bounding{\cf1  }boxes{\cf1  }{\cf3\b in}{\cf1 \par
+}{\cf1               }camera{\cf1  }coordinate.{\cf1 \par
+}{\cf1             }-{\cf1  }box3d_lidar{\cf1  }{\cf6 (}np.ndarray{\cf6 )}:{\cf1  }3D{\cf1  }bounding{\cf1  }boxes{\cf1  }{\cf3\b in}{\cf1 \par
+}{\cf1               }LiDAR{\cf1  }coordinate.{\cf1 \par
+}{\cf1             }-{\cf1  }scores{\cf1  }{\cf6 (}np.ndarray{\cf6 )}:{\cf1  }Scores{\cf1  }of{\cf1  }boxes.{\cf1 \par
+}{\cf1             }-{\cf1  }label_preds{\cf1  }{\cf6 (}np.ndarray{\cf6 )}:{\cf1  }Class{\cf1  }label{\cf1  }predictions.{\cf1 \par
+}{\cf1             }-{\cf1  }sample_idx{\cf1  }{\cf6 (}int{\cf6 )}:{\cf1  }Sample{\cf1  }index.{\cf1 \par
+}{\cf1         }{\cf13 ""}{\cf13 "}{\cf1 \par
+}{\cf1         }#{\cf1  }TODO:{\cf1  }refactor{\cf1  }this{\cf1  }{\cf3\b function}{\cf1 \par
+}{\cf1         }{\cf9 box_preds}{\cf1  }{\cf6 =}{\cf1  }box_dict{\cf6 [}{\cf13 'bboxes_3d'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 scores}{\cf1  }{\cf6 =}{\cf1  }box_dict{\cf6 [}{\cf13 'scores_3d'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 labels}{\cf1  }{\cf6 =}{\cf1  }box_dict{\cf6 [}{\cf13 'labels_3d'}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 sample_idx}{\cf1  }{\cf6 =}{\cf1  }info{\cf6 [}{\cf13 'sample_idx'}{\cf6 ]}{\cf1 \par
+}{\cf1         }box_preds.limit_yaw{\cf6 (}{\cf9 offset}{\cf6 =}{\cf20 0}.5,{\cf1  }{\cf9 period}{\cf6 =}np.pi{\cf1  }*{\cf1  }{\cf20 2}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }len{\cf6 (}box_preds{\cf6 )}{\cf1  }{\cf6 =}{\cf6 =}{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 bbox}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 box3d_camera}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 7}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 box3d_lidar}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 7}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 scores}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 label_preds}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 sample_idx}{\cf6 =}sample_idx{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }Here{\cf1  }default{\cf1  }used{\cf1  }{\cf13 'CAM2'}{\cf1  }to{\cf1  }compute{\cf1  }metric.{\cf1  }If{\cf1  }you{\cf1  }want{\cf1  }to{\cf1 \par
+}{\cf1         }#{\cf1  }use{\cf1  }another{\cf1  }camera,{\cf1  }please{\cf1  }modify{\cf1  }it.{\cf1 \par
+}{\cf1         }{\cf9 lidar2cam}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}{\cf1 \par
+}{\cf1             }info{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}self.default_cam_key{\cf6 ]}{\cf6 [}{\cf13 'lidar2cam'}{\cf6 ]}{\cf6 )}.astype{\cf6 (}{\cf1 \par
+}{\cf1                 }np.float32{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 P2}{\cf1  }{\cf6 =}{\cf1  }np.array{\cf6 (}info{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}self.default_cam_key{\cf6 ]}{\cf6 [}{\cf13 'cam2img'}{\cf6 ]}{\cf6 )}.astype{\cf6 (}{\cf1 \par
+}{\cf1             }np.float32{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 img_shape}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}info{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}self.default_cam_key{\cf6 ]}{\cf6 [}{\cf13 'height'}{\cf6 ]},{\cf1 \par
+}{\cf1                      }info{\cf6 [}{\cf13 'images'}{\cf6 ]}{\cf6 [}self.default_cam_key{\cf6 ]}{\cf6 [}{\cf13 'width'}{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 P2}{\cf1  }{\cf6 =}{\cf1  }box_preds.tensor.new_tensor{\cf6 (}P2{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }isinstance{\cf6 (}box_preds,{\cf1  }LiDARInstance3DBoxes{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 box_preds_camera}{\cf1  }{\cf6 =}{\cf1  }box_preds.convert_to{\cf6 (}Box3DMode.CAM,{\cf1  }lidar2cam{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 box_preds_lidar}{\cf1  }{\cf6 =}{\cf1  }box_preds{\cf1 \par
+}{\cf1         }{\cf3\b elif}{\cf1  }isinstance{\cf6 (}box_preds,{\cf1  }CameraInstance3DBoxes{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 box_preds_camera}{\cf1  }{\cf6 =}{\cf1  }box_preds{\cf1 \par
+}{\cf1             }{\cf9 box_preds_lidar}{\cf1  }{\cf6 =}{\cf1  }box_preds.convert_to{\cf6 (}Box3DMode.LIDAR,{\cf1 \par
+}{\cf1                                                    }np.linalg.inv{\cf6 (}lidar2cam{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf9 box_corners}{\cf1  }{\cf6 =}{\cf1  }box_preds_camera.corners{\cf1 \par
+}{\cf1         }{\cf9 box_corners_in_image}{\cf1  }{\cf6 =}{\cf1  }points_cam2img{\cf6 (}box_corners,{\cf1  }P2{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }box_corners_in_image:{\cf1  }{\cf6 [}N,{\cf1  }{\cf20 8},{\cf1  }{\cf20 2}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 minxy}{\cf1  }{\cf6 =}{\cf1  }torch.min{\cf6 (}box_corners_in_image,{\cf1  }{\cf9 dim}{\cf6 =}{\cf20 1}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 maxxy}{\cf1  }{\cf6 =}{\cf1  }torch.max{\cf6 (}box_corners_in_image,{\cf1  }{\cf9 dim}{\cf6 =}{\cf20 1}{\cf6 )}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf1 \par
+}{\cf1         }{\cf9 box_2d_preds}{\cf1  }{\cf6 =}{\cf1  }torch.cat{\cf6 (}{\cf6 [}minxy,{\cf1  }maxxy{\cf6 ]},{\cf1  }{\cf9 dim}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }Post-processing{\cf1 \par
+}{\cf1         }#{\cf1  }check{\cf1  }box_preds_camera{\cf1 \par
+}{\cf1         }{\cf9 image_shape}{\cf1  }{\cf6 =}{\cf1  }box_preds.tensor.new_tensor{\cf6 (}img_shape{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf9 valid_cam_inds}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf6 (}box_2d_preds{\cf6 [}:,{\cf1  }{\cf20 0}{\cf6 ]}{\cf1  }<{\cf1  }image_shape{\cf6 [}{\cf20 1}{\cf6 ]}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                           }{\cf6 (}box_2d_preds{\cf6 [}:,{\cf1  }{\cf20 1}{\cf6 ]}{\cf1  }<{\cf1  }image_shape{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                           }{\cf6 (}box_2d_preds{\cf6 [}:,{\cf1  }{\cf20 2}{\cf6 ]}{\cf1  }>{\cf1  }{\cf20 0}{\cf6 )}{\cf1  }&{\cf1  }{\cf6 (}box_2d_preds{\cf6 [}:,{\cf1  }{\cf20 3}{\cf6 ]}{\cf1  }>{\cf1  }{\cf20 0}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1         }#{\cf1  }check{\cf1  }box_preds_lidar{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }isinstance{\cf6 (}box_preds,{\cf1  }LiDARInstance3DBoxes{\cf6 )}:{\cf1 \par
+}{\cf1             }{\cf9 limit_range}{\cf1  }{\cf6 =}{\cf1  }box_preds.tensor.new_tensor{\cf6 (}self.pcd_limit_range{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 valid_pcd_inds}{\cf1  }{\cf6 =}{\cf1  }{\cf6 (}{\cf6 (}box_preds_lidar.center{\cf1  }>{\cf1  }limit_range{\cf6 [}:3{\cf6 ]}{\cf6 )}{\cf1  }&{\cf1 \par
+}{\cf1                               }{\cf6 (}box_preds_lidar.center{\cf1  }<{\cf1  }limit_range{\cf6 [}{\cf20 3}:{\cf6 ]}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1             }{\cf9 valid_inds}{\cf1  }{\cf6 =}{\cf1  }valid_cam_inds{\cf1  }&{\cf1  }valid_pcd_inds.all{\cf6 (}-1{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf9 valid_inds}{\cf1  }{\cf6 =}{\cf1  }valid_cam_inds{\cf1 \par
+}{\cf1 \par
+}{\cf1         }{\cf3\b if}{\cf1  }valid_inds.sum{\cf6 (}{\cf6 )}{\cf1  }>{\cf1  }{\cf20 0}:{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 bbox}{\cf6 =}box_2d_preds{\cf6 [}valid_inds,{\cf1  }:{\cf6 ]}.numpy{\cf6 (}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 pred_box_type_3d}{\cf6 =}type{\cf6 (}box_preds{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 box3d_camera}{\cf6 =}box_preds_camera{\cf6 [}valid_inds{\cf6 ]}.numpy{\cf6 (}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 box3d_lidar}{\cf6 =}box_preds_lidar{\cf6 [}valid_inds{\cf6 ]}.numpy{\cf6 (}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 scores}{\cf6 =}scores{\cf6 [}valid_inds{\cf6 ]}.numpy{\cf6 (}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 label_preds}{\cf6 =}labels{\cf6 [}valid_inds{\cf6 ]}.numpy{\cf6 (}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 sample_idx}{\cf6 =}sample_idx{\cf6 )}{\cf1 \par
+}{\cf1         }{\cf3\b else}:{\cf1 \par
+}{\cf1             }{\cf3\b return}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 bbox}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 4}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 pred_box_type_3d}{\cf6 =}type{\cf6 (}box_preds{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 box3d_camera}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 7}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 box3d_lidar}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0},{\cf1  }{\cf20 7}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 scores}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 label_preds}{\cf6 =}np.zeros{\cf6 (}{\cf6 [}{\cf20 0}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 sample_idx}{\cf6 =}sample_idx{\cf6 )}{\cf1 \par
+}}

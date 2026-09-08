@@ -1,0 +1,348 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 import{\cf1  }sys{\cf1 \par
+}sys.path.append{\cf6 (}{\cf13 '/projects/BEVFusion/bevfusion'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 _base_}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 '../../../configs/_base_/default_runtime.py'}{\cf6 ]}{\cf1 \par
+}{\cf9 custom_imports}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 imports}{\cf6 =}{\cf6 [}{\cf13 'projects.BEVFusion.bevfusion'}{\cf6 ]},{\cf1  }{\cf9 allow_failed_imports}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # model settings}{\cf1 \par
+}{\cf2\i # Voxel size for voxel encoder}{\cf1 \par
+}{\cf2\i # Usually voxel size is changed consistently with the point cloud range}{\cf1 \par
+}{\cf2\i # If point cloud range is modified, do remember to change all related}{\cf1 \par
+}{\cf2\i # keys in the config.}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # kitti settings}{\cf1 \par
+}{\cf9 point_cloud_range}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0},{\cf1  }-40,{\cf1  }-3,{\cf1  }{\cf20 70}.4,{\cf1  }{\cf20 40},{\cf1  }{\cf20 1}{\cf6 ]}{\cf1 \par
+}{\cf9 voxel_size}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 0}.05,{\cf1  }{\cf20 0}.05,{\cf1  }{\cf20 0}.1{\cf6 ]}{\cf1 \par
+}{\cf9 grid_size}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf20 1440},{\cf1  }{\cf20 1440},{\cf1  }{\cf20 41}{\cf6 ]}{\cf1 \par
+}{\cf9 class_names}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf13 'Pedestrian'},{\cf1  }{\cf13 'Cyclist'},{\cf1  }{\cf13 'Car'}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf9 metainfo}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf9 classes}{\cf6 =}class_names{\cf6 )}{\cf1 \par
+}{\cf9 dataset_type}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'KittiDataset'}{\cf1 \par
+}{\cf9 data_root}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'data/kitti/'}{\cf1 \par
+}{\cf9 data_prefix}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 pts}{\cf6 =}{\cf13 'training/velodyne_reduced'},{\cf1 \par
+}{\cf1     }{\cf9 img}{\cf1  }{\cf6 =}{\cf1  }{\cf13 'training/image_2'}{\cf1 \par
+}{\cf1     }{\cf6 )}{\cf1 \par
+}{\cf9 input_modality}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf9 use_lidar}{\cf6 =}True,{\cf1  }{\cf9 use_camera}{\cf6 =}False{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 backend_args}{\cf1  }{\cf6 =}{\cf1  }None{\cf1 \par
+}{\cf1 \par
+}{\cf9 model}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 type}{\cf6 =}{\cf13 'BEVFusion'},{\cf1 \par
+}{\cf1     }{\cf9 data_preprocessor}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'Det3DDataPreprocessor'},{\cf1 \par
+}{\cf1         }{\cf9 pad_size_divisor}{\cf6 =}{\cf20 32},{\cf1 \par
+}{\cf1         }{\cf9 voxelize_cfg}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 max_num_points}{\cf6 =}{\cf20 10},{\cf1 \par
+}{\cf1             }{\cf9 point_cloud_range}{\cf6 =}point_cloud_range,{\cf1 \par
+}{\cf1             }{\cf9 voxel_size}{\cf6 =}voxel_size,{\cf1 \par
+}{\cf1             }{\cf9 max_voxels}{\cf6 =}{\cf6 [}{\cf20 120000},{\cf1  }{\cf20 160000}{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf9 voxelize_reduce}{\cf6 =}True{\cf6 )}{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 pts_voxel_encoder}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'HardSimpleVFE'},{\cf1  }{\cf9 num_features}{\cf6 =}{\cf20 4}{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 pts_middle_encoder}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'BEVFusionSparseEncoder'},{\cf1 \par
+}{\cf1         }{\cf9 in_channels}{\cf6 =}{\cf20 4},{\cf1 \par
+}{\cf1         }{\cf9 sparse_shape}{\cf6 =}grid_size,{\cf1 \par
+}{\cf1         }{\cf9 order}{\cf6 =}{\cf6 (}{\cf13 'conv'},{\cf1  }{\cf13 'norm'},{\cf1  }{\cf13 'act'}{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 norm_cfg}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'BN1d'},{\cf1  }{\cf9 eps}{\cf6 =}{\cf20 0}.001,{\cf1  }{\cf9 momentum}{\cf6 =}{\cf20 0}.01{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 encoder_channels}{\cf6 =}{\cf6 (}{\cf6 (}{\cf20 16},{\cf1  }{\cf20 16},{\cf1  }{\cf20 32}{\cf6 )},{\cf1  }{\cf6 (}{\cf20 32},{\cf1  }{\cf20 32},{\cf1  }{\cf20 64}{\cf6 )},{\cf1  }{\cf6 (}{\cf20 64},{\cf1  }{\cf20 64},{\cf1  }{\cf20 128}{\cf6 )},{\cf1  }{\cf6 (}{\cf20 128},{\cf1 \par
+}{\cf1                                                                       }{\cf20 128}{\cf6 )}{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 encoder_paddings}{\cf6 =}{\cf6 (}{\cf6 (}{\cf20 0},{\cf1  }{\cf20 0},{\cf1  }{\cf20 1}{\cf6 )},{\cf1  }{\cf6 (}{\cf20 0},{\cf1  }{\cf20 0},{\cf1  }{\cf20 1}{\cf6 )},{\cf1  }{\cf6 (}{\cf20 0},{\cf1  }{\cf20 0},{\cf1  }{\cf6 (}{\cf20 1},{\cf1  }{\cf20 1},{\cf1  }{\cf20 0}{\cf6 )}{\cf6 )},{\cf1  }{\cf6 (}{\cf20 0},{\cf1  }{\cf20 0}{\cf6 )}{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 block_type}{\cf6 =}{\cf13 'basicblock'}{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 pts_backbone}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'SECOND'},{\cf1 \par
+}{\cf1         }{\cf9 in_channels}{\cf6 =}{\cf20 256},{\cf1 \par
+}{\cf1         }{\cf9 out_channels}{\cf6 =}{\cf6 [}{\cf20 128},{\cf1  }{\cf20 256}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 layer_nums}{\cf6 =}{\cf6 [}{\cf20 5},{\cf1  }{\cf20 5}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 layer_strides}{\cf6 =}{\cf6 [}{\cf20 1},{\cf1  }{\cf20 2}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 norm_cfg}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'BN'},{\cf1  }{\cf9 eps}{\cf6 =}{\cf20 0}.001,{\cf1  }{\cf9 momentum}{\cf6 =}{\cf20 0}.01{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 conv_cfg}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'Conv2d'},{\cf1  }{\cf9 bias}{\cf6 =}False{\cf6 )}{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 pts_neck}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'SECONDFPN'},{\cf1 \par
+}{\cf1         }{\cf9 in_channels}{\cf6 =}{\cf6 [}{\cf20 128},{\cf1  }{\cf20 256}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 out_channels}{\cf6 =}{\cf6 [}{\cf20 256},{\cf1  }{\cf20 256}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 upsample_strides}{\cf6 =}{\cf6 [}{\cf20 1},{\cf1  }{\cf20 2}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 norm_cfg}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'BN'},{\cf1  }{\cf9 eps}{\cf6 =}{\cf20 0}.001,{\cf1  }{\cf9 momentum}{\cf6 =}{\cf20 0}.01{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 upsample_cfg}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'deconv'},{\cf1  }{\cf9 bias}{\cf6 =}False{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 use_conv_for_no_stride}{\cf6 =}True{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 bbox_head}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'TransFusionHead'},{\cf1 \par
+}{\cf1         }{\cf9 num_proposals}{\cf6 =}{\cf20 200},{\cf1 \par
+}{\cf1         }{\cf9 auxiliary}{\cf6 =}True,{\cf1 \par
+}{\cf1         }{\cf9 in_channels}{\cf6 =}{\cf20 512},{\cf1 \par
+}{\cf1         }{\cf9 hidden_channel}{\cf6 =}{\cf20 128},{\cf1 \par
+}{\cf1         }{\cf9 num_classes}{\cf6 =}len{\cf6 (}class_names{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 nms_kernel_size}{\cf6 =}{\cf20 3},{\cf1 \par
+}{\cf1         }{\cf9 bn_momentum}{\cf6 =}{\cf20 0}.1,{\cf1 \par
+}{\cf1         }{\cf9 num_decoder_layers}{\cf6 =}{\cf20 1},{\cf1 \par
+}{\cf1         }{\cf9 decoder_layer}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 type}{\cf6 =}{\cf13 'TransformerDecoderLayer'},{\cf1 \par
+}{\cf1             }{\cf9 self_attn_cfg}{\cf6 =}dict{\cf6 (}{\cf9 embed_dims}{\cf6 =}{\cf20 128},{\cf1  }{\cf9 num_heads}{\cf6 =}{\cf20 8},{\cf1  }{\cf9 dropout}{\cf6 =}{\cf20 0}.1{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf9 cross_attn_cfg}{\cf6 =}dict{\cf6 (}{\cf9 embed_dims}{\cf6 =}{\cf20 128},{\cf1  }{\cf9 num_heads}{\cf6 =}{\cf20 8},{\cf1  }{\cf9 dropout}{\cf6 =}{\cf20 0}.1{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf9 ffn_cfg}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 embed_dims}{\cf6 =}{\cf20 128},{\cf1 \par
+}{\cf1                 }{\cf9 feedforward_channels}{\cf6 =}{\cf20 256},{\cf1 \par
+}{\cf1                 }{\cf9 num_fcs}{\cf6 =}{\cf20 2},{\cf1 \par
+}{\cf1                 }{\cf9 ffn_drop}{\cf6 =}{\cf20 0}.1,{\cf1 \par
+}{\cf1                 }{\cf9 act_cfg}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'ReLU'},{\cf1  }{\cf9 inplace}{\cf6 =}True{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf9 norm_cfg}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'LN'}{\cf6 )},{\cf1 \par
+}{\cf1             }{\cf9 pos_encoding_cfg}{\cf6 =}dict{\cf6 (}{\cf9 input_channel}{\cf6 =}{\cf20 2},{\cf1  }{\cf9 num_pos_feats}{\cf6 =}{\cf20 128}{\cf6 )}{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 train_cfg}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 dataset}{\cf6 =}dataset_type,{\cf1 \par
+}{\cf1             }{\cf9 point_cloud_range}{\cf6 =}point_cloud_range,{\cf1 \par
+}{\cf1             }{\cf9 grid_size}{\cf6 =}grid_size,{\cf1 \par
+}{\cf1             }{\cf9 voxel_size}{\cf6 =}voxel_size,{\cf1 \par
+}{\cf1             }{\cf9 out_size_factor}{\cf6 =}{\cf20 8},{\cf1 \par
+}{\cf1             }{\cf9 gaussian_overlap}{\cf6 =}{\cf20 0}.1,{\cf1 \par
+}{\cf1             }{\cf9 min_radius}{\cf6 =}{\cf20 2},{\cf1 \par
+}{\cf1             }{\cf9 pos_weight}{\cf6 =}-1,{\cf1 \par
+}{\cf1             }{\cf9 code_weights}{\cf6 =}{\cf6 [}{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0,{\cf1  }{\cf20 1}.0{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf9 assigner}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1                 }{\cf9 type}{\cf6 =}{\cf13 'HungarianAssigner3D'},{\cf1 \par
+}{\cf1                 }{\cf9 iou_calculator}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'BboxOverlaps3D'},{\cf1  }{\cf9 coordinate}{\cf6 =}{\cf13 'lidar'}{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 cls_cost}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1                     }{\cf9 type}{\cf6 =}{\cf13 'mmdet.FocalLossCost'},{\cf1 \par
+}{\cf1                     }{\cf9 gamma}{\cf6 =}{\cf20 2}.0,{\cf1 \par
+}{\cf1                     }{\cf9 alpha}{\cf6 =}{\cf20 0}.25,{\cf1 \par
+}{\cf1                     }{\cf9 weight}{\cf6 =}{\cf20 0}.15{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 reg_cost}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'BBoxBEVL1Cost'},{\cf1  }{\cf9 weight}{\cf6 =}{\cf20 0}.25{\cf6 )},{\cf1 \par
+}{\cf1                 }{\cf9 iou_cost}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'IoU3DCost'},{\cf1  }{\cf9 weight}{\cf6 =}{\cf20 0}.25{\cf6 )}{\cf6 )}{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 test_cfg}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 dataset}{\cf6 =}dataset_type,{\cf1 \par
+}{\cf1             }{\cf9 grid_size}{\cf6 =}grid_size,{\cf1 \par
+}{\cf1             }{\cf9 out_size_factor}{\cf6 =}{\cf20 8},{\cf1 \par
+}{\cf1             }{\cf9 voxel_size}{\cf6 =}voxel_size{\cf6 [}{\cf20 0}:2{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf9 pc_range}{\cf6 =}point_cloud_range{\cf6 [}{\cf20 0}:2{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf9 nms_type}{\cf6 =}None{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 common_heads}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 center}{\cf6 =}{\cf6 [}{\cf20 2},{\cf1  }{\cf20 2}{\cf6 ]},{\cf1  }{\cf9 height}{\cf6 =}{\cf6 [}{\cf20 1},{\cf1  }{\cf20 2}{\cf6 ]},{\cf1  }{\cf9 dim}{\cf6 =}{\cf6 [}{\cf20 3},{\cf1  }{\cf20 2}{\cf6 ]},{\cf1  }{\cf9 rot}{\cf6 =}{\cf6 [}{\cf20 2},{\cf1  }{\cf20 2}{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 bbox_coder}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 type}{\cf6 =}{\cf13 'TransFusionBBoxCoder'},{\cf1 \par
+}{\cf1             }{\cf9 pc_range}{\cf6 =}point_cloud_range{\cf6 [}{\cf20 0}:2{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf9 post_center_range}{\cf6 =}{\cf6 [}-61.2,{\cf1  }-61.2,{\cf1  }-20.0,{\cf1  }{\cf20 61}.2,{\cf1  }{\cf20 61}.2,{\cf1  }{\cf20 20}.0{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf9 score_threshold}{\cf6 =}{\cf20 0}.0,{\cf1 \par
+}{\cf1             }{\cf9 out_size_factor}{\cf6 =}{\cf20 8},{\cf1 \par
+}{\cf1             }{\cf9 voxel_size}{\cf6 =}voxel_size{\cf6 [}{\cf20 0}:2{\cf6 ]},{\cf1 \par
+}{\cf1             }{\cf9 code_size}{\cf6 =}{\cf20 8}{\cf6 )},{\cf1  }#{\cf1  }Si{\cf1  }no{\cf1  }es{\cf1  }{\cf20 8}{\cf1  }da{\cf1  }assertion{\cf1  }error{\cf1  }en{\cf1  }l1{\cf1 \par
+}{\cf1         }{\cf9 loss_cls}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 type}{\cf6 =}{\cf13 'mmdet.FocalLoss'},{\cf1 \par
+}{\cf1             }{\cf9 use_sigmoid}{\cf6 =}True,{\cf1 \par
+}{\cf1             }{\cf9 gamma}{\cf6 =}{\cf20 2}.0,{\cf1 \par
+}{\cf1             }{\cf9 alpha}{\cf6 =}{\cf20 0}.25,{\cf1 \par
+}{\cf1             }{\cf9 reduction}{\cf6 =}{\cf13 'mean'},{\cf1 \par
+}{\cf1             }{\cf9 loss_weight}{\cf6 =}{\cf20 1}.0{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 loss_heatmap}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 type}{\cf6 =}{\cf13 'mmdet.GaussianFocalLoss'},{\cf1  }{\cf9 reduction}{\cf6 =}{\cf13 'mean'},{\cf1  }{\cf9 loss_weight}{\cf6 =}{\cf20 1}.0{\cf6 )},{\cf1 \par
+}{\cf1         }{\cf9 loss_bbox}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 type}{\cf6 =}{\cf13 'mmdet.L1Loss'},{\cf1  }{\cf9 reduction}{\cf6 =}{\cf13 'mean'},{\cf1  }{\cf9 loss_weight}{\cf6 =}{\cf20 0}.25{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 db_sampler}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 data_root}{\cf6 =}data_root,{\cf1 \par
+}{\cf1     }{\cf9 info_path}{\cf6 =}data_root{\cf1  }+{\cf1  }{\cf13 'kitti_dbinfos_train.pkl'},{\cf1 \par
+}{\cf1     }{\cf9 rate}{\cf6 =}{\cf20 1}.0,{\cf1 \par
+}{\cf1     }{\cf9 prepare}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 filter_by_difficulty}{\cf6 =}{\cf6 [}-1{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 filter_by_min_points}{\cf6 =}dict{\cf6 (}{\cf9 Car}{\cf6 =}{\cf20 5},{\cf1  }{\cf9 Pedestrian}{\cf6 =}{\cf20 5},{\cf1  }{\cf9 Cyclist}{\cf6 =}{\cf20 5}{\cf6 )}{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 classes}{\cf6 =}class_names,{\cf1 \par
+}{\cf1     }{\cf9 sample_groups}{\cf6 =}dict{\cf6 (}{\cf9 Car}{\cf6 =}{\cf20 10},{\cf1  }{\cf9 Pedestrian}{\cf6 =}{\cf20 10},{\cf1  }{\cf9 Cyclist}{\cf6 =}{\cf20 10}{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 points_loader}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'LoadPointsFromFile'},{\cf1 \par
+}{\cf1         }{\cf9 coord_type}{\cf6 =}{\cf13 'LIDAR'},{\cf1 \par
+}{\cf1         }{\cf9 load_dim}{\cf6 =}{\cf20 4},{\cf1 \par
+}{\cf1         }{\cf9 use_dim}{\cf6 =}{\cf20 4},{\cf1 \par
+}{\cf1         }{\cf9 backend_args}{\cf6 =}backend_args{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 backend_args}{\cf6 =}backend_args{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 train_pipeline}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'LoadPointsFromFile'},{\cf1 \par
+}{\cf1         }{\cf9 coord_type}{\cf6 =}{\cf13 'LIDAR'},{\cf1 \par
+}{\cf1         }{\cf9 load_dim}{\cf6 =}{\cf20 4},{\cf1 \par
+}{\cf1         }{\cf9 use_dim}{\cf6 =}{\cf20 4},{\cf1 \par
+}{\cf1         }{\cf9 backend_args}{\cf6 =}backend_args{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'LoadAnnotations3D'},{\cf1 \par
+}{\cf1         }{\cf9 with_bbox_3d}{\cf6 =}True,{\cf1 \par
+}{\cf1         }{\cf9 with_label_3d}{\cf6 =}True,{\cf1 \par
+}{\cf1         }{\cf9 with_attr_label}{\cf6 =}False{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'ObjectSample'},{\cf1  }{\cf9 db_sampler}{\cf6 =}db_sampler{\cf6 )},{\cf1   }{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'GlobalRotScaleTrans'},{\cf1 \par
+}{\cf1         }{\cf9 scale_ratio_range}{\cf6 =}{\cf6 [}{\cf20 0}.95,{\cf1  }{\cf20 1}.05{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 rot_range}{\cf6 =}{\cf6 [}-0.78539816,{\cf1  }{\cf20 0}.78539816{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 translation_std}{\cf6 =}{\cf6 [}{\cf20 0}.2,{\cf1  }{\cf20 0}.2,{\cf1  }{\cf20 0}.2{\cf6 ]}{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'RandomFlip3D'}{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'PointsRangeFilter'},{\cf1  }{\cf9 point_cloud_range}{\cf6 =}point_cloud_range{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'ObjectRangeFilter'},{\cf1  }{\cf9 point_cloud_range}{\cf6 =}point_cloud_range{\cf6 )},{\cf1  }{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'ObjectNameFilter'},{\cf1 \par
+}{\cf1         }{\cf9 classes}{\cf6 =}class_names{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'PointShuffle'}{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'Pack3DDetInputs'},{\cf1 \par
+}{\cf1         }{\cf9 keys}{\cf6 =}{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf13 'points'},{\cf1  }{\cf13 'img'},{\cf1  }{\cf13 'gt_bboxes_3d'},{\cf1  }{\cf13 'gt_labels_3d'},{\cf1  }{\cf13 'gt_bboxes'},{\cf1 \par
+}{\cf1             }{\cf13 'gt_labels'}{\cf1 \par
+}{\cf1         }{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 meta_keys}{\cf6 =}{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf13 'cam2img'},{\cf1  }{\cf13 'ori_cam2img'},{\cf1  }{\cf13 'lidar2cam'},{\cf1  }{\cf13 'lidar2img'},{\cf1  }{\cf13 'cam2lidar'},{\cf1 \par
+}{\cf1             }{\cf13 'ori_lidar2img'},{\cf1  }{\cf13 'img_aug_matrix'},{\cf1  }{\cf13 'box_type_3d'},{\cf1  }{\cf13 'sample_idx'},{\cf1 \par
+}{\cf1             }{\cf13 'lidar_path'},{\cf1  }{\cf13 'img_path'},{\cf1  }{\cf13 'transformation_3d_flow'},{\cf1  }{\cf13 'pcd_rotation'},{\cf1 \par
+}{\cf1             }{\cf13 'pcd_scale_factor'},{\cf1  }{\cf13 'pcd_trans'},{\cf1  }{\cf13 'img_aug_matrix'},{\cf1 \par
+}{\cf1             }{\cf13 'lidar_aug_matrix'}{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf9 test_pipeline}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'LoadPointsFromFile'},{\cf1 \par
+}{\cf1         }{\cf9 coord_type}{\cf6 =}{\cf13 'LIDAR'},{\cf1 \par
+}{\cf1         }{\cf9 load_dim}{\cf6 =}{\cf20 4},{\cf1 \par
+}{\cf1         }{\cf9 use_dim}{\cf6 =}{\cf20 4},{\cf1 \par
+}{\cf1         }{\cf9 backend_args}{\cf6 =}backend_args{\cf6 )},{\cf1 \par
+}{\cf1     }#{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }#{\cf1      }{\cf9 type}{\cf6 =}{\cf13 'LoadPointsFromMultiSweeps'},{\cf1 \par
+}{\cf1     }#{\cf1      }{\cf9 sweeps_num}{\cf6 =}{\cf20 9},{\cf1 \par
+}{\cf1     }#{\cf1      }{\cf9 load_dim}{\cf6 =}{\cf20 5},{\cf1 \par
+}{\cf1     }#{\cf1      }{\cf9 use_dim}{\cf6 =}{\cf20 5},{\cf1 \par
+}{\cf1     }#{\cf1      }{\cf9 pad_empty_sweeps}{\cf6 =}True,{\cf1 \par
+}{\cf1     }#{\cf1      }{\cf9 remove_close}{\cf6 =}True,{\cf1 \par
+}{\cf1     }#{\cf1      }{\cf9 backend_args}{\cf6 =}backend_args{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'PointsRangeFilter'},{\cf1 \par
+}{\cf1         }{\cf9 point_cloud_range}{\cf6 =}point_cloud_range{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'Pack3DDetInputs'},{\cf1 \par
+}{\cf1         }{\cf9 keys}{\cf6 =}{\cf6 [}{\cf13 'img'},{\cf1  }{\cf13 'points'},{\cf1  }{\cf13 'gt_bboxes_3d'},{\cf1  }{\cf13 'gt_labels_3d'}{\cf6 ]},{\cf1 \par
+}{\cf1         }{\cf9 meta_keys}{\cf6 =}{\cf6 [}{\cf1 \par
+}{\cf1             }{\cf13 'cam2img'},{\cf1  }{\cf13 'ori_cam2img'},{\cf1  }{\cf13 'lidar2cam'},{\cf1  }{\cf13 'lidar2img'},{\cf1  }{\cf13 'cam2lidar'},{\cf1 \par
+}{\cf1             }{\cf13 'ori_lidar2img'},{\cf1  }{\cf13 'img_aug_matrix'},{\cf1  }{\cf13 'box_type_3d'},{\cf1  }{\cf13 'sample_idx'},{\cf1 \par
+}{\cf1             }{\cf13 'lidar_path'},{\cf1  }{\cf13 'img_path'},{\cf1  }{\cf13 'num_pts_feats'},{\cf1  }{\cf13 'num_views'}{\cf1 \par
+}{\cf1         }{\cf6 ]}{\cf6 )}{\cf1 \par
+}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf9 train_dataloader}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 batch_size}{\cf6 =}{\cf20 2},{\cf1 \par
+}{\cf1     }{\cf9 num_workers}{\cf6 =}{\cf20 2},{\cf1 \par
+}{\cf1     }{\cf9 persistent_workers}{\cf6 =}True,{\cf1 \par
+}{\cf1     }{\cf9 sampler}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'DefaultSampler'},{\cf1  }{\cf9 shuffle}{\cf6 =}True{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 dataset}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'CBGSDataset'},{\cf1 \par
+}{\cf1         }{\cf9 dataset}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1             }{\cf9 type}{\cf6 =}dataset_type,{\cf1 \par
+}{\cf1             }{\cf9 data_root}{\cf6 =}data_root,{\cf1 \par
+}{\cf1             }{\cf9 ann_file}{\cf6 =}{\cf13 'kitti_infos_train.pkl'},{\cf1 \par
+}{\cf1             }{\cf9 pipeline}{\cf6 =}train_pipeline,{\cf1 \par
+}{\cf1             }{\cf9 metainfo}{\cf6 =}metainfo,{\cf1 \par
+}{\cf1             }{\cf9 modality}{\cf6 =}input_modality,{\cf1 \par
+}{\cf1             }{\cf9 test_mode}{\cf6 =}False,{\cf1 \par
+}{\cf1             }{\cf9 data_prefix}{\cf6 =}data_prefix,{\cf1 \par
+}{\cf1             }#{\cf1  }{\cf9 use_valid_flag}{\cf6 =}True,{\cf1 \par
+}{\cf1             }#{\cf1  }we{\cf1  }use{\cf1  }{\cf9 box_type_3d}{\cf6 =}{\cf13 'LiDAR'}{\cf1  }{\cf3\b in}{\cf1  }kitti{\cf1  }and{\cf1  }nuscenes{\cf1  }dataset{\cf1 \par
+}{\cf1             }#{\cf1  }and{\cf1  }{\cf9 box_type_3d}{\cf6 =}{\cf13 'Depth'}{\cf1  }{\cf3\b in}{\cf1  }sunrgbd{\cf1  }and{\cf1  }scannet{\cf1  }dataset.{\cf1 \par
+}{\cf1             }{\cf9 box_type_3d}{\cf6 =}{\cf13 'LiDAR'}{\cf6 )}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 val_dataloader}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 batch_size}{\cf6 =}{\cf20 1},{\cf1 \par
+}{\cf1     }{\cf9 num_workers}{\cf6 =}{\cf20 4},{\cf1 \par
+}{\cf1     }{\cf9 persistent_workers}{\cf6 =}True,{\cf1 \par
+}{\cf1     }{\cf9 drop_last}{\cf6 =}False,{\cf1 \par
+}{\cf1     }{\cf9 sampler}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'DefaultSampler'},{\cf1  }{\cf9 shuffle}{\cf6 =}False{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 dataset}{\cf6 =}dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}dataset_type,{\cf1 \par
+}{\cf1         }{\cf9 data_root}{\cf6 =}data_root,{\cf1 \par
+}{\cf1         }{\cf9 ann_file}{\cf6 =}{\cf13 'kitti_infos_val.pkl'},{\cf1 \par
+}{\cf1         }{\cf9 pipeline}{\cf6 =}test_pipeline,{\cf1 \par
+}{\cf1         }{\cf9 metainfo}{\cf6 =}metainfo,{\cf1 \par
+}{\cf1         }{\cf9 modality}{\cf6 =}input_modality,{\cf1 \par
+}{\cf1         }{\cf9 data_prefix}{\cf6 =}data_prefix,{\cf1 \par
+}{\cf1         }{\cf9 test_mode}{\cf6 =}True,{\cf1 \par
+}{\cf1         }{\cf9 box_type_3d}{\cf6 =}{\cf13 'LiDAR'},{\cf1 \par
+}{\cf1         }{\cf9 backend_args}{\cf6 =}backend_args{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf9 test_dataloader}{\cf1  }{\cf6 =}{\cf1  }val_dataloader{\cf1 \par
+}{\cf1 \par
+}{\cf9 val_evaluator}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 type}{\cf6 =}{\cf13 'KittiMetric'},{\cf1  }{\cf9 ann_file}{\cf6 =}{\cf13 'data/kitti/kitti_infos_val.pkl'}{\cf6 )}{\cf1 \par
+}{\cf9 test_evaluator}{\cf1  }{\cf6 =}{\cf1  }val_evaluator{\cf1 \par
+}{\cf1 \par
+}{\cf9 vis_backends}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'LocalVisBackend'}{\cf6 )},{\cf1  }dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'TensorboardVisBackend'}{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf9 visualizer}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 type}{\cf6 =}{\cf13 'Det3DLocalVisualizer'},{\cf1  }{\cf9 vis_backends}{\cf6 =}vis_backends,{\cf1  }{\cf9 name}{\cf6 =}{\cf13 'visualizer'}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # learning rate}{\cf1 \par
+}{\cf9 lr}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}.0001{\cf1 \par
+}{\cf9 param_scheduler}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1     }#{\cf1  }learning{\cf1  }rate{\cf1  }scheduler{\cf1 \par
+}{\cf1     }#{\cf1  }During{\cf1  }the{\cf1  }first{\cf1  }{\cf20 8}{\cf1  }epochs,{\cf1  }learning{\cf1  }rate{\cf1  }increases{\cf1  }from{\cf1  }{\cf20 0}{\cf1  }to{\cf1  }lr{\cf1  }*{\cf1  }{\cf20 10}{\cf1 \par
+}{\cf1     }#{\cf1  }during{\cf1  }the{\cf1  }next{\cf1  }{\cf20 12}{\cf1  }epochs,{\cf1  }learning{\cf1  }rate{\cf1  }decreases{\cf1  }from{\cf1  }lr{\cf1  }*{\cf1  }{\cf20 10}{\cf1  }to{\cf1 \par
+}{\cf1     }#{\cf1  }lr{\cf1  }*{\cf1  }1e-4{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'CosineAnnealingLR'},{\cf1 \par
+}{\cf1         }{\cf9 T_max}{\cf6 =}{\cf20 8},{\cf1 \par
+}{\cf1         }{\cf9 eta_min}{\cf6 =}lr{\cf1  }*{\cf1  }{\cf20 10},{\cf1 \par
+}{\cf1         }{\cf9 begin}{\cf6 =}{\cf20 0},{\cf1 \par
+}{\cf1         }{\cf9 end}{\cf6 =}{\cf20 8},{\cf1 \par
+}{\cf1         }{\cf9 by_epoch}{\cf6 =}True,{\cf1 \par
+}{\cf1         }{\cf9 convert_to_iter_based}{\cf6 =}True{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'CosineAnnealingLR'},{\cf1 \par
+}{\cf1         }{\cf9 T_max}{\cf6 =}{\cf20 12},{\cf1 \par
+}{\cf1         }{\cf9 eta_min}{\cf6 =}lr{\cf1  }*{\cf1  }1e-4,{\cf1 \par
+}{\cf1         }{\cf9 begin}{\cf6 =}{\cf20 8},{\cf1 \par
+}{\cf1         }{\cf9 end}{\cf6 =}{\cf20 20},{\cf1 \par
+}{\cf1         }{\cf9 by_epoch}{\cf6 =}True,{\cf1 \par
+}{\cf1         }{\cf9 convert_to_iter_based}{\cf6 =}True{\cf6 )},{\cf1 \par
+}{\cf1     }#{\cf1  }momentum{\cf1  }scheduler{\cf1 \par
+}{\cf1     }#{\cf1  }During{\cf1  }the{\cf1  }first{\cf1  }{\cf20 8}{\cf1  }epochs,{\cf1  }momentum{\cf1  }increases{\cf1  }from{\cf1  }{\cf20 0}{\cf1  }to{\cf1  }{\cf20 0}.85{\cf1  }/{\cf1  }{\cf20 0}.95{\cf1 \par
+}{\cf1     }#{\cf1  }during{\cf1  }the{\cf1  }next{\cf1  }{\cf20 12}{\cf1  }epochs,{\cf1  }momentum{\cf1  }increases{\cf1  }from{\cf1  }{\cf20 0}.85{\cf1  }/{\cf1  }{\cf20 0}.95{\cf1  }to{\cf1  }{\cf20 1}{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'CosineAnnealingMomentum'},{\cf1 \par
+}{\cf1         }{\cf9 T_max}{\cf6 =}{\cf20 8},{\cf1 \par
+}{\cf1         }{\cf9 eta_min}{\cf6 =}{\cf20 0}.85{\cf1  }/{\cf1  }{\cf20 0}.95,{\cf1 \par
+}{\cf1         }{\cf9 begin}{\cf6 =}{\cf20 0},{\cf1 \par
+}{\cf1         }{\cf9 end}{\cf6 =}{\cf20 8},{\cf1 \par
+}{\cf1         }{\cf9 by_epoch}{\cf6 =}True,{\cf1 \par
+}{\cf1         }{\cf9 convert_to_iter_based}{\cf6 =}True{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}{\cf13 'CosineAnnealingMomentum'},{\cf1 \par
+}{\cf1         }{\cf9 T_max}{\cf6 =}{\cf20 12},{\cf1 \par
+}{\cf1         }{\cf9 eta_min}{\cf6 =}{\cf20 1},{\cf1 \par
+}{\cf1         }{\cf9 begin}{\cf6 =}{\cf20 8},{\cf1 \par
+}{\cf1         }{\cf9 end}{\cf6 =}{\cf20 20},{\cf1 \par
+}{\cf1         }{\cf9 by_epoch}{\cf6 =}True,{\cf1 \par
+}{\cf1         }{\cf9 convert_to_iter_based}{\cf6 =}True{\cf6 )}{\cf1 \par
+}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # runtime settings}{\cf1 \par
+}{\cf9 train_cfg}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf9 by_epoch}{\cf6 =}True,{\cf1  }{\cf9 max_epochs}{\cf6 =}{\cf20 20},{\cf1  }{\cf9 val_interval}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf9 val_cfg}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf9 test_cfg}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 optim_wrapper}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 type}{\cf6 =}{\cf13 'OptimWrapper'},{\cf1 \par
+}{\cf1     }{\cf9 optimizer}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'AdamW'},{\cf1  }{\cf9 lr}{\cf6 =}lr,{\cf1  }{\cf9 weight_decay}{\cf6 =}{\cf20 0}.01{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 clip_grad}{\cf6 =}dict{\cf6 (}{\cf9 max_norm}{\cf6 =}{\cf20 35},{\cf1  }{\cf9 norm_type}{\cf6 =}{\cf20 2}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Default setting for scaling LR automatically}{\cf1 \par
+}{\cf2\i #   - `enable` means enable scaling LR automatically}{\cf1 \par
+}{\cf2\i #       or not by default.}{\cf1 \par
+}{\cf2\i #   - `base_batch_size` = (8 GPUs) x (4 samples per GPU).}{\cf1 \par
+}{\cf9 auto_scale_lr}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf9 enable}{\cf6 =}False,{\cf1  }{\cf9 base_batch_size}{\cf6 =}{\cf20 2}{\cf6 )}{\cf1 \par
+}{\cf9 log_processor}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf9 window_size}{\cf6 =}{\cf20 50}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 default_hooks}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 logger}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'LoggerHook'},{\cf1  }{\cf9 interval}{\cf6 =}{\cf20 50}{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 checkpoint}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'CheckpointHook'},{\cf1  }{\cf9 interval}{\cf6 =}{\cf20 1}{\cf6 )}{\cf6 )}{\cf1 \par
+}{\cf9 custom_hooks}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}dict{\cf6 (}{\cf9 type}{\cf6 =}{\cf13 'DisableObjectSampleHook'},{\cf1  }{\cf9 disable_after_epoch}{\cf6 =}{\cf20 15}{\cf6 )}{\cf6 ]}{\cf1 \par
+}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i ##########################IMPORTANTE###########################}{\cf1 \par
+}{\cf2\i # during training RuntimeError: CUDA error: invalid configuration argument}{\cf1 \par
+}{\cf2\i # Solution  https://github.com/open-mmlab/mmdetection3d/issues/306#issuecomment-978976583}{\cf1 \par
+}{\cf2\i # set deterministic to Flase on Voxelize init}{\cf1 \par
+}{\cf2\i # NO FUNCIONA}{\cf1 \par
+}}

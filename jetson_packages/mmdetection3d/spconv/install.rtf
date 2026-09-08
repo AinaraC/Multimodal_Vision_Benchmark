@@ -1,0 +1,17 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 git{\cf1  }clone{\cf1  }https://github.com/FindDefinition/cumm{\cf1 \par
+}git{\cf1  }clone{\cf1  }https://github.com/traveller59/spconv{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # El orden de instalaci{\u243}n en https://github.com/traveller59/spconv}{\cf1 \par
+}pip3{\cf1  }install{\cf1  }-e{\cf1  }/cumm{\cf1  }{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Soluci{\u243}n sacada de https://github.com/traveller59/spconv/issues/468}{\cf1 \par
+}{\cf2\i # Eliminar cumm de la seccion requires en pyproject.toml }{\cf1 \par
+}mv{\cf1  }pyproject.toml{\cf1  }/spconv/pyproject.toml{\cf1 \par
+}{\cf2\i # Soluci{\u243}n sacada de https://github.com/traveller59/spconv/issues/726}{\cf1 \par
+}{\cf2\i # Eliminar la linea 44 de setup.py}{\cf1 \par
+}mv{\cf1  }setup.py{\cf1  }/spconv/setup.py{\cf1 \par
+}{\cf1     }{\cf1 \par
+}pip3{\cf1  }install{\cf1  }-e{\cf1  }/spconv{\cf1 \par
+}{\cf2\i # Para buildear spconv, pero no funciona}{\cf1 \par
+}python3{\cf1  }-c{\cf1  }{\cf13 "import spconv"}{\cf1 \par
+}}

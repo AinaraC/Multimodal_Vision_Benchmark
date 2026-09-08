@@ -1,0 +1,36 @@
+{\rtf1\ansi\uc0\deff0{\fonttbl{\f0\fmodern\fprq1\fcharset0;}}{\colortbl;\red187\green187\blue187;\red96\green160\blue176;\red0\green112\blue32;\red255\green240\blue240;\red144\green32\blue0;\red102\green102\blue102;\red6\green40\blue126;\red14\green132\blue181;\red187\green96\blue213;\red96\green173\blue213;\red0\green32\blue112;\red213\green85\blue55;\red64\green112\blue160;\red6\green40\blue115;\red85\green85\blue85;\red112\green160\blue208;\red35\green83\blue136;\red81\green121\blue24;\red198\green93\blue9;\red64\green160\blue112;\red0\green0\blue128;\red128\green0\blue128;\red160\green0\blue0;\red0\green160\blue0;\red255\green0\blue0;\red136\green136\blue136;\red0\green68\blue221;}\f0 {\cf2\i # Copyright (c) OpenMMLab. All rights reserved.}{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmengine.optim.optimizer.optimizer_wrapper}{\cf1  }import{\cf1  }OptimWrapper{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmengine.optim.scheduler.lr_scheduler}{\cf1  }import{\cf1  }CosineAnnealingLR,{\cf1  }LinearLR{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 mmengine.runner.loops}{\cf1  }import{\cf1  }EpochBasedTrainLoop,{\cf1  }TestLoop,{\cf1  }ValLoop{\cf1 \par
+}{\cf3\b from}{\cf1  }{\cf13 torch.optim.adamw}{\cf1  }import{\cf1  }AdamW{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # This schedule is mainly used by models with dynamic voxelization}{\cf1 \par
+}{\cf2\i # optimizer}{\cf1 \par
+}{\cf9 lr}{\cf1  }{\cf6 =}{\cf1  }{\cf20 0}.003{\cf1   }#{\cf1  }max{\cf1  }learning{\cf1  }rate{\cf1 \par
+}{\cf9 optim_wrapper}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf1 \par
+}{\cf1     }{\cf9 type}{\cf6 =}OptimWrapper,{\cf1 \par
+}{\cf1     }{\cf9 optimizer}{\cf6 =}dict{\cf6 (}{\cf9 type}{\cf6 =}AdamW,{\cf1  }{\cf9 lr}{\cf6 =}lr,{\cf1  }{\cf9 weight_decay}{\cf6 =}{\cf20 0}.001,{\cf1  }{\cf9 betas}{\cf6 =}{\cf6 (}{\cf20 0}.95,{\cf1  }{\cf20 0}.99{\cf6 )}{\cf6 )},{\cf1 \par
+}{\cf1     }{\cf9 clip_grad}{\cf6 =}dict{\cf6 (}{\cf9 max_norm}{\cf6 =}{\cf20 10},{\cf1  }{\cf9 norm_type}{\cf6 =}{\cf20 2}{\cf6 )},{\cf1 \par
+}{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf9 param_scheduler}{\cf1  }{\cf6 =}{\cf1  }{\cf6 [}{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf9 type}{\cf6 =}LinearLR,{\cf1  }{\cf9 start_factor}{\cf6 =}{\cf20 0}.1,{\cf1  }{\cf9 by_epoch}{\cf6 =}False,{\cf1  }{\cf9 begin}{\cf6 =}{\cf20 0},{\cf1  }{\cf9 end}{\cf6 =}{\cf20 1000}{\cf6 )},{\cf1 \par
+}{\cf1     }dict{\cf6 (}{\cf1 \par
+}{\cf1         }{\cf9 type}{\cf6 =}CosineAnnealingLR,{\cf1 \par
+}{\cf1         }{\cf9 begin}{\cf6 =}{\cf20 0},{\cf1 \par
+}{\cf1         }{\cf9 T_max}{\cf6 =}{\cf20 40},{\cf1 \par
+}{\cf1         }{\cf9 end}{\cf6 =}{\cf20 40},{\cf1 \par
+}{\cf1         }{\cf9 by_epoch}{\cf6 =}True,{\cf1 \par
+}{\cf1         }{\cf9 eta_min}{\cf6 =}1e-5{\cf6 )}{\cf1 \par
+}{\cf6 ]}{\cf1 \par
+}{\cf2\i # training schedule for 1x}{\cf1 \par
+}{\cf9 train_cfg}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf9 type}{\cf6 =}EpochBasedTrainLoop,{\cf1  }{\cf9 max_epochs}{\cf6 =}{\cf20 40},{\cf1  }{\cf9 val_interval}{\cf6 =}{\cf20 1}{\cf6 )}{\cf1 \par
+}{\cf9 val_cfg}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf9 type}{\cf6 =}ValLoop{\cf6 )}{\cf1 \par
+}{\cf9 test_cfg}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf9 type}{\cf6 =}TestLoop{\cf6 )}{\cf1 \par
+}{\cf1 \par
+}{\cf2\i # Default setting for scaling LR automatically}{\cf1 \par
+}{\cf2\i #   - `enable` means enable scaling LR automatically}{\cf1 \par
+}{\cf2\i #       or not by default.}{\cf1 \par
+}{\cf2\i #   - `base_batch_size` = (8 GPUs) x (2 samples per GPU).}{\cf1 \par
+}{\cf9 auto_scale_lr}{\cf1  }{\cf6 =}{\cf1  }dict{\cf6 (}{\cf9 enable}{\cf6 =}False,{\cf1  }{\cf9 base_batch_size}{\cf6 =}{\cf20 2}{\cf6 )}{\cf1 \par
+}}

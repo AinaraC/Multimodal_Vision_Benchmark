@@ -1,0 +1,4 @@
+Modelo,Prom. GPU (%),Prom. CPU (%),Prom. RAM (%),Incremento Temp. GPU (°C),Incremento Temp. CPU (°C),Incremento RAM (%),Consumo total prom. (W),Consumo modelo prom. (W)
+MVX-Net,79.72,5.11,61.26,8.44,6.88,16.81,14.04,5.72
+BEVFusion,67.0,4.42,64.9,9.5,7.53,22.7,14.02,5.7
+VirConv,53.45,5.68,77.44,5.97,4.66,36.7,11.77,4.75
